@@ -54,6 +54,12 @@ jmethodID g_blockdataSetByteArrayFp;
 jmethodID g_blockdataSetNumOfRowsFp;
 jmethodID g_blockdataSetNumOfColsFp;
 
+jmethodID g_statementQueryFp;
+jmethodID g_resultSetResultFp;
+
+void query_call_back(void *, TAOS_RES *, int);
+void fetch_rows_call_back(void *, TAOS_RES *, int);
+
 void jniGetGlobalMethod(JNIEnv *env) {
   // make sure init function executed once
   switch (atomic_val_compare_exchange_32(&__init, 0, 1)) {
@@ -153,6 +159,16 @@ JNIEXPORT void JNICALL Java_com_taosdata_jdbc_TSDBJNIConnector_initImp(JNIEnv *e
 
   jniGetGlobalMethod(env);
   jniDebug("jni initialized successfully, config directory: %s", configDir);
+}
+
+JNIEXPORT void JNICALL Java_com_taosdata_jdbc_TSDBJNIConnector_initAsync(JNIEnv *env, jobject jobj) {
+  jclass statementClass = (*env)->FindClass(env, "com/taosdata/jdbc/TSDBStatement");
+  jclass stmt = (*env)->NewGlobalRef(env, statementClass);
+  g_statementQueryFp = (*env)->GetMethodID(env, stmt, "queryFp", "(JI)V");
+
+  jclass resultSetClass = (*env)->FindClass(env, "com/taosdata/jdbc/TSDBResultSet");
+  jclass result = (*env)->NewGlobalRef(env, resultSetClass);
+  g_resultSetResultFp = (*env)->GetMethodID(env, result, "resultFp", "(JI)V");
 }
 
 JNIEXPORT jobject createTSDBException(JNIEnv *env, int code, char *msg) {
@@ -341,6 +357,60 @@ JNIEXPORT jlong JNICALL Java_com_taosdata_jdbc_TSDBJNIConnector_executeQueryImp(
 
   free(str);
   return (jlong)pSql;
+}
+
+JNIEXPORT jint JNICALL Java_com_taosdata_jdbc_TSDBJNIConnector_asyncExecuteQueryImp(JNIEnv *env, jobject jobj,
+                                                                                    jbyteArray jsql, jlong con,
+                                                                                    jobject statement) {
+  TAOS *tscon = (TAOS *)con;
+  if (tscon == NULL) {
+    jniError("jobj:%p, connection already closed", jobj);
+    return JNI_CONNECTION_NULL;
+  }
+
+  if (jsql == NULL) {
+    jniError("jobj:%p, conn:%p, empty sql string", jobj, tscon);
+    return JNI_SQL_NULL;
+  }
+
+  jsize len = (*env)->GetArrayLength(env, jsql);
+
+  char *str = (char *)calloc(1, sizeof(char) * (len + 1));
+  if (str == NULL) {
+    jniError("jobj:%p, conn:%p, alloc memory failed", jobj, tscon);
+    return JNI_OUT_OF_MEMORY;
+  }
+
+  (*env)->GetByteArrayRegion(env, jsql, 0, len, (jbyte *)str);
+  if ((*env)->ExceptionCheck(env)) {
+    // todo handle error
+  }
+
+  statement = (*env)->NewGlobalRef(env, statement);
+  taos_query_a(tscon, str, query_call_back, statement);
+
+  free(str);
+  return JNI_SUCCESS;
+}
+
+void query_call_back(void *param, TAOS_RES *tres, int code) {
+  JNIEnv *env = NULL;
+  int     status = (*g_vm)->GetEnv(g_vm, (void **)&env, JNI_VERSION_1_6);
+  bool    needDetach = false;
+  if (status < 0) {
+    if ((*g_vm)->AttachCurrentThread(g_vm, (void **)&env, NULL) != 0) {
+      return;
+    }
+    needDetach = true;
+  }
+
+  jobject obj = (jobject)param;
+  (*env)->CallVoidMethod(env, obj, g_statementQueryFp, tres, code);
+
+  if (needDetach) {
+    (*g_vm)->DetachCurrentThread(g_vm);
+  }
+  env = NULL;
 }
 
 JNIEXPORT jint JNICALL Java_com_taosdata_jdbc_TSDBJNIConnector_getErrCodeImp(JNIEnv *env, jobject jobj, jlong con,
@@ -601,6 +671,64 @@ JNIEXPORT jint JNICALL Java_com_taosdata_jdbc_TSDBJNIConnector_fetchBlockImp(JNI
                            jniFromNCharToByteArray(env, (char *)row[i], field[i] * numOfRows));
   }
 
+  return JNI_SUCCESS;
+}
+
+JNIEXPORT jint JNICALL Java_com_taosdata_jdbc_TSDBJNIConnector_asyncFetchBlockImp(JNIEnv *env, jobject jobj, jlong con,
+                                                                                  jlong res, jobject resultSet) {
+  int32_t code = check_for_params(jobj, con, res);
+  if (code != JNI_SUCCESS) {
+    return code;
+  }
+
+  TAOS_RES *tres = (TAOS_RES *)res;
+  resultSet = (*env)->NewGlobalRef(env, resultSet);
+
+  taos_fetch_rows_a(tres, fetch_rows_call_back, resultSet);
+  return JNI_SUCCESS;
+}
+
+void fetch_rows_call_back(void *param, TAOS_RES *res, int numOfRows) {
+  JNIEnv *env = NULL;
+  int     status = (*g_vm)->GetEnv(g_vm, (void **)&env, JNI_VERSION_1_6);
+  bool    needDetach = false;
+  if (status < 0) {
+    if ((*g_vm)->AttachCurrentThread(g_vm, (void **)&env, NULL) != 0) {
+      return;
+    }
+    needDetach = true;
+  }
+
+  jobject obj = (jobject)param;
+  (*env)->CallVoidMethod(env, obj, g_resultSetResultFp, res, numOfRows);
+
+  if (needDetach) {
+    (*g_vm)->DetachCurrentThread(g_vm);
+  }
+  env = NULL;
+}
+
+JNIEXPORT jint JNICALL Java_com_taosdata_jdbc_TSDBJNIConnector_parseDataImp(JNIEnv *env, jobject jobj, jlong con,
+                                                                            jlong res, jlong data, jint num,
+                                                                            jobject block) {
+  TAOS *tscon = (TAOS *)con;
+  if (tscon == NULL) {
+    jniError("jobj:%p, connection is closed", jobj);
+    return JNI_CONNECTION_NULL;
+  }
+
+  int32_t numOfFields = taos_num_fields((TAOS_RES *)res);
+  assert(numOfFields > 0);
+
+  (*env)->CallVoidMethod(env, block, g_blockdataSetNumOfRowsFp, num);
+  (*env)->CallVoidMethod(env, block, g_blockdataSetNumOfColsFp, numOfFields);
+  TAOS_ROW *row = taos_result_block((TAOS_RES *)data);
+
+  int32_t *lengths = taos_fetch_lengths((TAOS_RES *)res);
+  for (int i = 0; i < numOfFields; i++) {
+    (*env)->CallVoidMethod(env, block, g_blockdataSetByteArrayFp, i, lengths[i] * num,
+                           jniFromNCharToByteArray(env, (char *)((*row)[i]), lengths[i] * num));
+  }
   return JNI_SUCCESS;
 }
 

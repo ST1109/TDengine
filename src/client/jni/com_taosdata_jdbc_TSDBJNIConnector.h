@@ -33,6 +33,13 @@ JNIEXPORT void JNICALL Java_com_taosdata_jdbc_TSDBJNIConnector_initImp(JNIEnv *,
 
 /*
  * Class:     com_taosdata_jdbc_TSDBJNIConnector
+ * Method:    initAsync
+ * Signature: ()V
+ */
+JNIEXPORT void JNICALL Java_com_taosdata_jdbc_TSDBJNIConnector_initAsync(JNIEnv *, jclass);
+
+/*
+ * Class:     com_taosdata_jdbc_TSDBJNIConnector
  * Method:    setOptions
  * Signature: (ILjava/lang/String;)I
  */
@@ -74,6 +81,14 @@ JNIEXPORT jlong JNICALL Java_com_taosdata_jdbc_TSDBJNIConnector_connectImp(JNIEn
  * Signature: ([BJ)I
  */
 JNIEXPORT jlong JNICALL Java_com_taosdata_jdbc_TSDBJNIConnector_executeQueryImp(JNIEnv *, jobject, jbyteArray, jlong);
+
+/*
+ * Class:     com_taosdata_jdbc_TSDBJNIConnector
+ * Method:    executeAsyncQueryImp
+ * Signature: ([BJLcom/taosdata/jdbc/TSDBStatement;)I
+ */
+JNIEXPORT jint JNICALL Java_com_taosdata_jdbc_TSDBJNIConnector_asyncExecuteQueryImp(JNIEnv *, jobject, jbyteArray,
+                                                                                    jlong, jobject);
 
 /*
  * Class:     com_taosdata_jdbc_TSDBJNIConnector
@@ -141,6 +156,22 @@ JNIEXPORT jint JNICALL Java_com_taosdata_jdbc_TSDBJNIConnector_fetchRowImp(JNIEn
  * Signature: (JJLcom/taosdata/jdbc/TSDBResultSetBlockData;)I
  */
 JNIEXPORT jint JNICALL Java_com_taosdata_jdbc_TSDBJNIConnector_fetchBlockImp(JNIEnv *, jobject, jlong, jlong, jobject);
+
+/*
+ * Class:     com_taosdata_jdbc_TSDBJNIConnector
+ * Method:    fetchBlockImp
+ * Signature: (JJLcom/taosdata/jdbc/TSDBResultSetBlockData;)I
+ */
+JNIEXPORT jint JNICALL Java_com_taosdata_jdbc_TSDBJNIConnector_asyncFetchBlockImp(JNIEnv *, jobject, jlong, jlong,
+                                                                                  jobject);
+
+/*
+ * Class:     com_taosdata_jdbc_TSDBJNIConnector
+ * Method:    parseDataImp
+ * Signature: (JJJILcom/taosdata/jdbc/TSDBResultSetBlockData;)I
+ */
+JNIEXPORT jint JNICALL Java_com_taosdata_jdbc_TSDBJNIConnector_parseDataImp(JNIEnv *, jobject, jlong, jlong, jlong,
+                                                                            jint, jobject);
 
 /*
  * Class:     com_taosdata_jdbc_TSDBJNIConnector

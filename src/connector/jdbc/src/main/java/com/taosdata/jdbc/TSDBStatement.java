@@ -17,6 +17,7 @@ package com.taosdata.jdbc;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.concurrent.ArrayBlockingQueue;
 
 public class TSDBStatement extends AbstractStatement {
     /**
@@ -25,6 +26,7 @@ public class TSDBStatement extends AbstractStatement {
     private boolean isClosed;
     private TSDBConnection connection;
     private TSDBResultSet resultSet;
+    ArrayBlockingQueue<AsyncResultPtr> queue = new ArrayBlockingQueue<>(1);
 
     TSDBStatement(TSDBConnection connection) {
         this.connection = connection;
@@ -44,16 +46,28 @@ public class TSDBStatement extends AbstractStatement {
             // we use this pSql and invoke the isUpdateQuery(long pSql) method to decide .
             // but the insert sql is already executed in database.
             //execute query
-            long pSql = this.connection.getConnector().executeQuery(sql);
+            this.connection.getConnector().executeQuery(sql, this);
+            AsyncResultPtr resultPtr;
+            try {
+                resultPtr = queue.take();
+            } catch (InterruptedException e) {
+                throw TSDBError.createSQLException(TSDBErrorNumbers.ERROR_UNKNOWN, "error occur while taking feedback message from executeUpdate");
+            }
+            if (resultPtr.getCode() < 0) {
+                this.connection.getConnector().freeResultSet(resultPtr.getPtr());
+                String msg = this.connection.getConnector().getErrMsg(resultPtr.getPtr());
+                this.connection.getConnector().freeResultSet(resultPtr.getPtr());
+                throw TSDBError.createSQLException(resultPtr.getCode(), msg);
+            }
             // if pSql is create/insert/update/delete/alter SQL
-            if (this.connection.getConnector().isUpdateQuery(pSql)) {
-                this.connection.getConnector().freeResultSet(pSql);
+            if (this.connection.getConnector().isUpdateQuery(resultPtr.getPtr())) {
+                this.connection.getConnector().freeResultSet(resultPtr.getPtr());
                 throw TSDBError.createSQLException(TSDBErrorNumbers.ERROR_INVALID_WITH_EXECUTEQUERY);
             }
-            int timestampPrecision = this.connection.getConnector().getResultTimePrecision(pSql);
-            resultSet = new TSDBResultSet(this, this.connection.getConnector(), pSql, timestampPrecision);
-            resultSet.setBatchFetch(this.connection.getBatchFetch());
+            int timestampPrecision = this.connection.getConnector().getResultTimePrecision(resultPtr.getPtr());
+            resultSet = new TSDBResultSet(this, this.connection.getConnector(), resultPtr.getPtr(), timestampPrecision);
             return resultSet;
+
         }
     }
 
@@ -64,14 +78,28 @@ public class TSDBStatement extends AbstractStatement {
             if (this.resultSet != null && !this.resultSet.isClosed())
                 this.resultSet.close();
 
-            long pSql = this.connection.getConnector().executeQuery(sql);
-            // if pSql is create/insert/update/delete/alter SQL
-            if (!this.connection.getConnector().isUpdateQuery(pSql)) {
-                this.connection.getConnector().freeResultSet(pSql);
-                throw TSDBError.createSQLException(TSDBErrorNumbers.ERROR_INVALID_WITH_EXECUTEUPDATE);
+            this.connection.getConnector().executeQuery(sql, this);
+            AsyncResultPtr resultPtr;
+            try {
+                resultPtr = queue.take();
+            } catch (InterruptedException e) {
+                throw TSDBError.createSQLException(TSDBErrorNumbers.ERROR_UNKNOWN, "error occur while taking feedback message from executeUpdate");
             }
-            int affectedRows = this.connection.getConnector().getAffectedRows(pSql);
-            this.connection.getConnector().freeResultSet(pSql);
+
+            if (resultPtr.getCode() < 0) {
+                affectedRows = -1;
+                String msg = this.connection.getConnector().getErrMsg(resultPtr.getPtr());
+                this.connection.getConnector().freeResultSet(resultPtr.getPtr());
+                throw TSDBError.createSQLException(resultPtr.getCode(), msg);
+            }
+            // if pSql is create/insert/update/delete/alter SQL
+            if (!this.connection.getConnector().isUpdateQuery(resultPtr.getPtr())) {
+                this.connection.getConnector().freeResultSet(resultPtr.getPtr());
+                throw TSDBError.createSQLException(TSDBErrorNumbers.ERROR_INVALID_WITH_EXECUTEQUERY);
+            }
+            //TODO confirm the meaning of resultPtr.code
+            int affectedRows = this.connection.getConnector().getAffectedRows(resultPtr.getPtr());
+            this.connection.getConnector().freeResultSet(resultPtr.getPtr());
             return affectedRows;
         }
     }
@@ -95,17 +123,28 @@ public class TSDBStatement extends AbstractStatement {
                 this.resultSet.close();
 
             // execute query
-            long pSql = this.connection.getConnector().executeQuery(sql);
-            // if pSql is create/insert/update/delete/alter SQL
-            if (this.connection.getConnector().isUpdateQuery(pSql)) {
-                this.affectedRows = this.connection.getConnector().getAffectedRows(pSql);
-                this.connection.getConnector().freeResultSet(pSql);
+            this.connection.getConnector().executeQuery(sql, this);
+            AsyncResultPtr resultPtr;
+            try {
+                resultPtr = queue.take();
+            } catch (InterruptedException e) {
+                throw TSDBError.createSQLException(TSDBErrorNumbers.ERROR_UNKNOWN, "error occur while taking feedback message from execute");
+            }
+            if (resultPtr.getCode() < 0) {
+                affectedRows = -1;
+                String msg = this.connection.getConnector().getErrMsg(resultPtr.getPtr());
+                this.connection.getConnector().freeResultSet(resultPtr.getPtr());
+                throw TSDBError.createSQLException(resultPtr.getCode(), msg);
+            }
+
+            if (this.connection.getConnector().isUpdateQuery(resultPtr.getPtr())) {
+                this.affectedRows = this.connection.getConnector().getAffectedRows(resultPtr.getPtr());
+                this.connection.getConnector().freeResultSet(resultPtr.getPtr());
                 return false;
             }
 
-            int timestampPrecision = this.connection.getConnector().getResultTimePrecision(pSql);
-            this.resultSet = new TSDBResultSet(this, this.connection.getConnector(), pSql, timestampPrecision);
-            this.resultSet.setBatchFetch(this.connection.getBatchFetch());
+            int timestampPrecision = this.connection.getConnector().getResultTimePrecision(resultPtr.getPtr());
+            this.resultSet = new TSDBResultSet(this, this.connection.getConnector(), resultPtr.getPtr(), timestampPrecision);
             return true;
         }
     }
@@ -144,5 +183,8 @@ public class TSDBStatement extends AbstractStatement {
         return isClosed;
     }
 
-
+    public void queryFp(long ptr, int code) {
+        AsyncResultPtr resultPtr = new AsyncResultPtr(ptr, code);
+        queue.add(resultPtr);
+    }
 }

@@ -41,6 +41,7 @@ public class TSDBJNIConnector {
                 setConfigImp(configJSON.toJSONString());
 
                 initImp(props.getProperty(TSDBDriver.PROPERTY_KEY_CONFIG_DIR, null));
+                initAsync();
 
                 String locale = props.getProperty(TSDBDriver.PROPERTY_KEY_LOCALE);
                 if (setOptions(0, locale) < 0) {
@@ -61,6 +62,8 @@ public class TSDBJNIConnector {
     }
 
     private static native void initImp(String configDir);
+
+    private static native void initAsync();
 
     private static native int setOptions(int optionIndex, String optionValue);
 
@@ -126,6 +129,27 @@ public class TSDBJNIConnector {
 
         return pSql;
     }
+
+    public void executeQuery(String sql, TSDBStatement statement) throws SQLException {
+        int code = 0;
+        try {
+            code = this.asyncExecuteQueryImp(sql.getBytes(TaosGlobalConfig.getCharset()), this.taos, statement);
+            taosInfo.stmt_count_increment();
+        } catch (UnsupportedEncodingException e) {
+            throw TSDBError.createSQLException(TSDBErrorNumbers.ERROR_UNSUPPORTED_ENCODING);
+        }
+        if (code == TSDBConstants.JNI_CONNECTION_NULL) {
+            throw TSDBError.createSQLException(TSDBErrorNumbers.ERROR_JNI_CONNECTION_NULL);
+        }
+        if (code == TSDBConstants.JNI_SQL_NULL) {
+            throw TSDBError.createSQLException(TSDBErrorNumbers.ERROR_JNI_SQL_NULL);
+        }
+        if (code == TSDBConstants.JNI_OUT_OF_MEMORY) {
+            throw TSDBError.createSQLException(TSDBErrorNumbers.ERROR_JNI_OUT_OF_MEMORY);
+        }
+    }
+
+    private native int asyncExecuteQueryImp(byte[] sqlBytes, long connection, TSDBStatement statement);
 
     private native long executeQueryImp(byte[] sqlBytes, long connection);
 
@@ -207,11 +231,17 @@ public class TSDBJNIConnector {
 
     private native int fetchRowImp(long connection, long resultSet, TSDBResultSetRowData rowData);
 
-    public int fetchBlock(long resultSet, TSDBResultSetBlockData blockData) {
-        return this.fetchBlockImp(this.taos, resultSet, blockData);
+    public int fetchBlock(long resultSet, TSDBResultSet object) {
+        return this.asyncFetchBlockImp(this.taos, resultSet, object);
     }
 
-    private native int fetchBlockImp(long connection, long resultSet, TSDBResultSetBlockData blockData);
+    private native int asyncFetchBlockImp(long connection, long resultSet, TSDBResultSet object);
+
+    public void parseData(long result, long data, int num, TSDBResultSetBlockData blockData) {
+        this.parseDataImp(this.taos, result, data, num, blockData);
+    }
+
+    private native int parseDataImp(long connection, long result, long data, int num, TSDBResultSetBlockData blockData);
 
     /**
      * Get Result Time Precision.
