@@ -101,18 +101,19 @@ void* rpcReallocCont(void* ptr, int contLen) {
 }
 
 void rpcSendRedirectRsp(void* thandle, const SEpSet* pEpSet) {
-  SRpcMsg rpcMsg;
-  memset(&rpcMsg, 0, sizeof(rpcMsg));
+  assert(0);
+  // SRpcMsg rpcMsg;
+  // memset(&rpcMsg, 0, sizeof(rpcMsg));
 
-  SMEpSet msg = {.epSet = *pEpSet};
-  int32_t len = tSerializeSMEpSet(NULL, 0, &msg);
-  rpcMsg.pCont = rpcMallocCont(len);
-  tSerializeSMEpSet(rpcMsg.pCont, len, &msg);
+  // SMEpSet msg = {.epSet = *pEpSet};
+  // int32_t len = tSerializeSMEpSet(NULL, 0, &msg);
+  // rpcMsg.pCont = rpcMallocCont(len);
+  // tSerializeSMEpSet(rpcMsg.pCont, len, &msg);
 
-  rpcMsg.code = TSDB_CODE_RPC_REDIRECT;
-  rpcMsg.handle = thandle;
+  // rpcMsg.code = TSDB_CODE_RPC_REDIRECT;
+  // rpcMsg.handle = thandle;
 
-  rpcSendResponse(&rpcMsg);
+  // rpcSendResponse(&rpcMsg);
 }
 
 int  rpcReportProgress(void* pConn, char* pCont, int contLen) { return -1; }

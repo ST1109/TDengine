@@ -465,7 +465,7 @@ static void addConnToPool(void* pool, SCliConn* conn) {
   SCliThrdObj* thrd = conn->hostThrd;
   CONN_HANDLE_THREAD_QUIT(thrd);
 
-  STrans* pTransInst = ((SCliThrdObj*)conn->hostThrd)->pTransInst;
+  STrans* pTransInst = thrd->pTransInst;
   conn->expireTime = taosGetTimestampMs() + CONN_PERSIST_TIME(pTransInst->idleTime);
   transCtxCleanup(&conn->ctx);
   transQueueClear(&conn->cliMsgs);
@@ -923,9 +923,15 @@ int cliAppCb(SCliConn* pConn, STransMsg* pResp, SCliMsg* pMsg) {
         pEpSet->inUse = (++pEpSet->inUse) % pEpSet->numOfEps;
       } else {
         SMEpSet emsg = {0};
-        tDeserializeSMEpSet(pResp->pCont, pResp->contLen, &emsg);
+        if ((tDeserializeSMEpSet(pResp->pCont, pResp->contLen, &emsg) < 0)) {
+          tError("failed to deserialized epset");
+        }
+        for (int i = 0; i < emsg.epSet.numOfEps; i++) {
+          tTrace("epset idx: %d, %s:%d, inUse: %d", i, emsg.epSet.eps[i].fqdn, emsg.epSet.eps[i].port,
+                 emsg.epSet.inUse);
+        }
         pCtx->epSet = emsg.epSet;
-        tTrace("use remote epset, current in use: %d", pEpSet->inUse);
+        tTrace("use remote epset, current in use: %d, current try:%d", pEpSet->inUse, pCtx->retryCount);
         pEpSet->inUse = (pEpSet->inUse++) % pEpSet->numOfEps;
       }
       cliHandleReq(pMsg, pThrd);

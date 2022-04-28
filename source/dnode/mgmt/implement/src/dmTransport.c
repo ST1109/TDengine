@@ -324,6 +324,10 @@ static inline void dmSendRedirectRsp(SMgmtWrapper *pWrapper, const SRpcMsg *pRsp
   ASSERT(pRsp->code == TSDB_CODE_RPC_REDIRECT);
   if (pWrapper->procType != DND_PROC_CHILD) {
     SRpcMsg resp = {0};
+    for (int i = 0; i < pNewEpSet->numOfEps; i++) {
+      dError("xxxxxx epset idx: %d, %s:%d, inUse: %d", i, pNewEpSet->eps[i].fqdn, pNewEpSet->eps[i].port,
+             pNewEpSet->inUse);
+    }
 
     SMEpSet msg = {.epSet = *pNewEpSet};
     int32_t len = tSerializeSMEpSet(NULL, 0, &msg);
