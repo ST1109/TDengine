@@ -901,6 +901,11 @@ int cliAppCb(SCliConn* pConn, STransMsg* pResp, SCliMsg* pMsg) {
    * upper layer handle retry if code equal TSDB_CODE_RPC_NETWORK_UNAVAIL
    */
   tmsg_t msgType = pCtx->msgType;
+
+  if (pResp->code == TSDB_CODE_RPC_REDIRECT) {
+    tTrace("YYYYY received, msg type %s", TMSG_INFO(msgType));
+    assert(pTransInst->retry != NULL);
+  }
   if ((pTransInst->retry != NULL && (pTransInst->retry(pResp->code))) ||
       ((pResp->code == TSDB_CODE_RPC_NETWORK_UNAVAIL) && msgType == TDMT_MND_CONNECT)) {
     pCtx->retryCount += 1;
@@ -914,15 +919,18 @@ int cliAppCb(SCliConn* pConn, STransMsg* pResp, SCliMsg* pMsg) {
       }
     } else if (pCtx->retryCount < TRANS_RETRY_COUNT_LIMIT) {
       if (pResp->contLen == 0) {
-        pEpSet->inUse = (pEpSet->inUse++) % pEpSet->numOfEps;
+        tTrace("use local epset, current in use: %d", pEpSet->inUse + 1);
+        pEpSet->inUse = (++pEpSet->inUse) % pEpSet->numOfEps;
       } else {
         SMEpSet emsg = {0};
         tDeserializeSMEpSet(pResp->pCont, pResp->contLen, &emsg);
         pCtx->epSet = emsg.epSet;
+        tTrace("use remote epset, current in use: %d", pEpSet->inUse);
+        pEpSet->inUse = (pEpSet->inUse++) % pEpSet->numOfEps;
       }
       cliHandleReq(pMsg, pThrd);
       // release pConn
-      addConnToPool(pThrd, pConn);
+      // addConnToPool(pThrd, pConn);
       return -1;
     }
   }
