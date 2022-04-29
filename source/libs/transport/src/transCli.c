@@ -636,6 +636,7 @@ void cliSend(SCliConn* pConn) {
 
   return;
 _RETURN:
+  tError("%p some thing Go wrong", pConn);
   return;
 }
 
@@ -904,10 +905,11 @@ int cliAppCb(SCliConn* pConn, STransMsg* pResp, SCliMsg* pMsg) {
 
   if (pResp->code == TSDB_CODE_RPC_REDIRECT) {
     tTrace("YYYYY received, msg type %s", TMSG_INFO(msgType));
-    assert(pTransInst->retry != NULL);
+    // assert(pTransInst->retry != NULL);
   }
   if ((pTransInst->retry != NULL && (pTransInst->retry(pResp->code))) ||
       ((pResp->code == TSDB_CODE_RPC_NETWORK_UNAVAIL) && msgType == TDMT_MND_CONNECT)) {
+    pMsg->sent = 0;
     pCtx->retryCount += 1;
     pMsg->st = taosGetTimestampUs();
     if (msgType == TDMT_MND_CONNECT && pResp->code == TSDB_CODE_RPC_NETWORK_UNAVAIL) {
@@ -931,7 +933,7 @@ int cliAppCb(SCliConn* pConn, STransMsg* pResp, SCliMsg* pMsg) {
                  emsg.epSet.inUse);
         }
         pCtx->epSet = emsg.epSet;
-        tTrace("use remote epset, current in use: %d, current try:%d", pEpSet->inUse, pCtx->retryCount);
+        tTrace("use remote epset, current in use: %d, current try:%d", pEpSet->inUse, pCtx->retryCount + 1);
         pEpSet->inUse = (pEpSet->inUse++) % pEpSet->numOfEps;
       }
       cliHandleReq(pMsg, pThrd);
