@@ -33,7 +33,7 @@ public class SelectTest {
 
     @Test
     public void testSelect() throws SQLException {
-        for (int i = 0; i < 200; i++) {
+        for (int i = 0; i < 1; i++) {
             System.out.println("---- " + i + " ---");
             Statement statement = connectionRow.createStatement();
             select(statement);
@@ -47,38 +47,36 @@ public class SelectTest {
         long getTime = 0;
 
         for (int i = 0; i < 1000; i++) {
-//            long e = System.nanoTime();
+            long e = System.nanoTime();
             ResultSet resultSet = statement.executeQuery("select * from " + databaseName + ".alltype_query limit 3000");
-//            queryTime += System.nanoTime() - e;
-//            long a = System.nanoTime();
-//            long tmp = 0;
-            resultSet.next();
-            resultSet.close();
-//            while (resultSet.next()) {
-//                long begin = System.nanoTime();
-//                resultSet.getBoolean(2);
-//                resultSet.getInt(3);
-//                resultSet.getInt(4);
-//                resultSet.getInt(5);
-//                resultSet.getLong(6);
-//                resultSet.getInt(7);
-//                resultSet.getInt(8);
-//                resultSet.getLong(9);
-//                resultSet.getLong(10);
-//                resultSet.getFloat(11);
-//                resultSet.getDouble(12);
-//                resultSet.getString(13);
-//                resultSet.getString(14);
-//                tmp += System.nanoTime() - begin;
-//            }
-//            nextTime += System.nanoTime() - a - tmp;
-//            getTime += tmp;
+            queryTime += System.nanoTime() - e;
+            long a = System.nanoTime();
+            long tmp = 0;
+            while (resultSet.next()) {
+                long begin = System.nanoTime();
+                resultSet.getBoolean(2);
+                resultSet.getInt(3);
+                resultSet.getInt(4);
+                resultSet.getInt(5);
+                resultSet.getLong(6);
+                resultSet.getInt(7);
+                resultSet.getInt(8);
+                resultSet.getLong(9);
+                resultSet.getLong(10);
+                resultSet.getFloat(11);
+                resultSet.getDouble(12);
+                resultSet.getString(13);
+                resultSet.getString(14);
+                tmp += System.nanoTime() - begin;
+            }
+            nextTime += System.nanoTime() - a - tmp;
+            getTime += tmp;
         }
-//        long d = System.nanoTime() - start;
-//        System.out.println("每次查询时间: " + d / 1000);
-//        System.out.println("query耗时" + ": " + queryTime / 1000);
-//        System.out.println("next耗时" + ": " + nextTime / 1000);
-//        System.out.println("解析数据耗时" + ": " + getTime / 1000);
+        long d = System.nanoTime() - start;
+        System.out.println("每次查询时间: " + d / 1000);
+        System.out.println("query指针耗时" + ": " + queryTime / 1000);
+        System.out.println("next数据指针耗时" + ": " + nextTime / 1000);
+        System.out.println("解析数据耗时" + ": " + getTime / 1000);
         statement.close();
     }
 
