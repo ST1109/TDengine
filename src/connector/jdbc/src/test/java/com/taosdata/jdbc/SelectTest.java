@@ -33,7 +33,7 @@ public class SelectTest {
 
     @Test
     public void testSelect() throws SQLException {
-        for (int i = 0; i < 1; i++) {
+        for (int i = 0; i < 200; i++) {
             System.out.println("---- " + i + " ---");
             Statement statement = connectionRow.createStatement();
             select(statement);
