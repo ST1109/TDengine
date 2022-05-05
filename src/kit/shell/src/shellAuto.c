@@ -256,7 +256,7 @@ void printScreen(TAOS * con, Command * cmd, SWords * match) {
   }
   
   // insert new
-  insertChar(cmd, str, strLen);
+  insertChar(cmd, (char *)str, strLen);
   
   // show
   showOnScreen(cmd);

@@ -20,6 +20,7 @@
 #include "shellCommand.h"
 #include "tkey.h"
 #include "tulog.h"
+#include "shellAuto.h"
 
 #define OPT_ABORT 1 /* �Cabort */
 
