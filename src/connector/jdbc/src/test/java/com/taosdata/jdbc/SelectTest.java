@@ -16,7 +16,7 @@ public class SelectTest {
 
     public static void testInsert() throws SQLException {
         Statement statement = connectionRow.createStatement();
-        statement.executeUpdate("drop database " + databaseName);
+        statement.executeUpdate("drop database if exists " + databaseName);
         statement.executeUpdate("create database " + databaseName);
         statement.execute("create table if not exists " + databaseName + ".alltype_query(ts timestamp, c1 bool,c2 tinyint, c3 smallint, c4 int, c5 bigint, c6 tinyint unsigned, c7 smallint unsigned, c8 int unsigned, c9 bigint unsigned, c10 float, c11 double, c12 binary(20), c13 nchar(20) )");
         long cur = System.currentTimeMillis();

@@ -407,6 +407,9 @@ void query_call_back(void *param, TAOS_RES *tres, int code) {
   jobject obj = (jobject)param;
   (*env)->CallVoidMethod(env, obj, g_statementQueryFp, tres, code);
 
+  (*env)->DeleteGlobalRef(env, obj);
+  param = NULL;
+
   if (needDetach) {
     (*g_vm)->DetachCurrentThread(g_vm);
   }
@@ -701,6 +704,9 @@ void fetch_rows_call_back(void *param, TAOS_RES *res, int numOfRows) {
 
   jobject obj = (jobject)param;
   (*env)->CallVoidMethod(env, obj, g_resultSetResultFp, res, numOfRows);
+
+  (*env)->DeleteGlobalRef(env, param);
+  param = NULL;
 
   if (needDetach) {
     (*g_vm)->DetachCurrentThread(g_vm);
