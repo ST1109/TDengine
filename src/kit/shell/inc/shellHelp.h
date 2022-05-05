@@ -13,10 +13,8 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef __SHELL_AUTO__
-#define __SHELL_AUTO__
+#ifndef __SHELL_HELP__
+#define __SHELL_HELP__
 
-// press tab key
-void pressTabKey(TAOS * con, Command * cmd);
 
 #endif

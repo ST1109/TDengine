@@ -21,7 +21,3 @@
 #include "tkey.h"
 #include "tulog.h"
 #include "shellAuto.h"
-
-void pressTabKey(TAOS * con, Command * cmd) {
-  // check 
-}
