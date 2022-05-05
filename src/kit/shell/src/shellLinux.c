@@ -249,6 +249,9 @@ int32_t shellReadCommand(TAOS *con, char *command) {
         utf8_array[k] = c;
       }
       insertChar(&cmd, utf8_array, count);
+    } else if (c == 0x09) {
+      // press TAB key
+      pressTabKey(con, &cmd);
     } else if (c < '\033') {
       // Ctrl keys.  TODO: Implement ctrl combinations
       switch (c) {
