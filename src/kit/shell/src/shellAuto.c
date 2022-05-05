@@ -25,16 +25,16 @@
 // extern function
 void insertChar(Command *cmd, char *c, int size);
 
-typedef struct {
+typedef struct SWord{
   const char * word;
   int32_t len;
-  SWord * next;
+  struct SWord * next;
 }SWord;
 
 typedef struct {
   const char * source;
   int32_t count;
-  SWord*  words;
+  SWord*  head;
   // matched information
   int32_t matchIndex;    // matched word index in words
   int32_t matchLen;     // matched length at matched word
@@ -52,6 +52,20 @@ int32_t firstMatchIndex = -1; // first match shellCommands index
 int32_t lastMatchIndex  = -1; // last match shellCommands index
 
 #define SHELL_COMMAND_COUNT() (sizeof(shellCommands) / sizeof(SWord))
+
+// get at
+SWord * atWord(SWords * command, int32_t index) {
+  SWord * word = command->head;
+  for (int32_t i = 0; i < index; i++) {
+    if (word == NULL)
+      return NULL;
+    word = word->next;
+  }
+
+  return word;
+}
+
+#define MATCH_WORD(x) atWord(x, x->matchIndex)
 
 // add word
 SWord * addWord(const char* p, int32_t len) {
@@ -86,11 +100,11 @@ void parseCommand(SWords * command) {
       } 
 
       // found split or string end , append word
-      if (command->words == NULL) {
-        command->words = addWord(p + start, i - start);
+      if (command->head == NULL) {
+        command->head = addWord(p + start, i - start);
         command->count = 1;
       } else {
-        SWord * word = command->words;
+        SWord * word = command->head;
         while(word->next) {
           word = word->next;
         }
@@ -106,7 +120,7 @@ void parseCommand(SWords * command) {
 
 // free Command
 void freeCommand(SWords * command) {
-  SWord * word = command->words;
+  SWord * word = command->head;
   if (word == NULL) {
     return ;
   }
@@ -142,8 +156,8 @@ void shellAutoExit() {
 // compare command cmd1 come from shellCommands , cmd2 come from user input
 int32_t compareCommand(SWords * cmd1, SWords * cmd2) {
   for (int32_t i = 0; i < cmd1->count; i++) {
-    SWord * word1 = cmd1->words->word;
-    SWord * word2 = cmd2->words->word;
+    SWord * word1 = cmd1->head;
+    SWord * word2 = cmd2->head;
 
     if(word1->len == word2->len) {
       if (strncasecmp(word1->word, word2->word, word1->len) != 0)
@@ -173,7 +187,7 @@ int32_t compareCommand(SWords * cmd1, SWords * cmd2) {
 }
 
 // match command
-SWord * matchCommand(SWords * command) {
+SWords * matchCommand(SWords * command) {
   int32_t count = SHELL_COMMAND_COUNT();
   for (int32_t i = 0; i < count; i ++) {
     SWords * cmd1 = shellCommands + i;
@@ -193,7 +207,7 @@ SWord * matchCommand(SWords * command) {
       if (firstMatchIndex != -1)
         firstMatchIndex = i;
       lastMatchIndex = i;
-      return shellCommands + i;
+      return &shellCommands[i];
     }
   }
 
@@ -210,18 +224,18 @@ void printScreen(TAOS * con, Command * cmd, SWords * match) {
   }
 
   // first tab press 
-  char * str = NULL;
+  const char * str = NULL;
   int strLen = 0; 
 
   if (firstMatchIndex == lastMatchIndex) {
     // first press tab
-    SWord * word = &match->words[match->matchIndex];
+    SWord * word = MATCH_WORD(match);
     str = word->word + match->matchLen;
     strLen = word->len - match->matchLen;
   } else {
     // continue to press tab any times
     SWords * last = &shellCommands[lastMatchIndex];
-    int count = last->words[last->matchIndex].len;
+    int count = MATCH_WORD(last)->len;
 
     // delete last match word
     int size = 0;
@@ -236,7 +250,7 @@ void printScreen(TAOS * con, Command * cmd, SWords * match) {
       cmd->endOffset -= width;
     }
 
-    SWord * word = &match->words[match->matchIndex];
+    SWord * word = MATCH_WORD(match);
     str = word->word;
     strLen = word->len;
   }
