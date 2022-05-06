@@ -155,9 +155,9 @@ void shellAutoExit() {
 
 // compare command cmd1 come from shellCommands , cmd2 come from user input
 int32_t compareCommand(SWords * cmd1, SWords * cmd2) {
+  SWord * word1 = cmd1->head;
+  SWord * word2 = cmd2->head;
   for (int32_t i = 0; i < cmd1->count; i++) {
-    SWord * word1 = cmd1->head;
-    SWord * word2 = cmd2->head;
 
     if(word1->len == word2->len) {
       if (strncasecmp(word1->word, word2->word, word1->len) != 0)
