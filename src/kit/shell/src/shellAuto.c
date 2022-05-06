@@ -42,11 +42,11 @@ typedef struct {
 }SWords;
 
 SWords shellCommands[] = {
-  {"describe", 0, NULL},
-  {"show databases", 0, NULL},
-  {"show tables", 0, NULL},
-  {"show stables", 0, NULL},
-  {"use", 0, NULL}
+  {"describe", 0, 0, NULL},
+  {"show databases", 0, 0, NULL},
+  {"show tables", 0, 0, NULL},
+  {"show stables", 0, 0, NULL},
+  {"use", 0, 0, NULL}
 };
 
 int32_t firstMatchIndex = -1; // first match shellCommands index
@@ -82,7 +82,8 @@ SWord * addWord(const char* p, int32_t len) {
 void parseCommand(SWords * command) {
   const char * p = command->source;
   int32_t start = 0;
-  int32_t size  = command->source_len;
+  int32_t size  = command->source_len > 0 ? command->source_len : strlen(p);
+
   bool lastBlank = false;
   for (int i = 0; i <= size; i++) {
     if (p[i] == ' ' || p[i] == 0) {
