@@ -17,6 +17,7 @@
 #include "shell.h"
 #include "tconfig.h"
 #include "tnettest.h"
+#include "shellCommand.h"
 #include "shellAuto.h"
 
 pthread_t pid;

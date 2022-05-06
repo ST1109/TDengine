@@ -51,7 +51,7 @@ SWords shellCommands[] = {
 int32_t firstMatchIndex = -1; // first match shellCommands index
 int32_t lastMatchIndex  = -1; // last match shellCommands index
 
-#define SHELL_COMMAND_COUNT() (sizeof(shellCommands) / sizeof(SWord))
+#define SHELL_COMMAND_COUNT() (sizeof(shellCommands) / sizeof(SWords))
 
 // get at
 SWord * atWord(SWords * command, int32_t index) {
