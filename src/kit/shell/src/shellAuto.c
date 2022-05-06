@@ -70,9 +70,9 @@ SWord * atWord(SWords * command, int32_t index) {
 // add word
 SWord * addWord(const char* p, int32_t len) {
   SWord* word = (SWord *) malloc(sizeof(SWord));
+  memset(word, 0, sizeof(SWord));
   word->word = p;
   word->len  = len;
-  word->next = NULL;
   
   return word;
 }
