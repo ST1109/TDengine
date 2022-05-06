@@ -204,7 +204,7 @@ SWords * matchCommand(SWords * command) {
     // compare
     int32_t index = compareCommand(cmd1, command);
     if (index != -1) {
-      if (firstMatchIndex != -1)
+      if (firstMatchIndex == -1)
         firstMatchIndex = i;
       lastMatchIndex = i;
       return &shellCommands[i];
