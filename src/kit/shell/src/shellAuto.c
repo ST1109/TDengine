@@ -257,9 +257,6 @@ void printScreen(TAOS * con, Command * cmd, SWords * match) {
   
   // insert new
   insertChar(cmd, (char *)str, strLen);
-  
-  // show
-  showOnScreen(cmd);
 }
 
 // show help
@@ -278,6 +275,7 @@ void pressTabKey(TAOS * con, Command * cmd) {
 
   // parse command
   SWords* command = (SWords *)malloc(sizeof(SWords));
+  memset(command, 0, sizeof(SWords));
   command->source = cmd->command;
   parseCommand(command);
 
