@@ -33,6 +33,7 @@ typedef struct SWord{
 
 typedef struct {
   const char * source;
+  int32_t source_len; // valid data length in source
   int32_t count;
   SWord*  head;
   // matched information
@@ -81,7 +82,7 @@ SWord * addWord(const char* p, int32_t len) {
 void parseCommand(SWords * command) {
   const char * p = command->source;
   int32_t start = 0;
-  int32_t size  = strlen(p);
+  int32_t size  = command->source_len;
   bool lastBlank = false;
   for (int i = 0; i <= size; i++) {
     if (p[i] == ' ' || p[i] == 0) {
@@ -267,7 +268,7 @@ void showHelp(TAOS * con, Command * cmd) {
 // main key press tab
 void pressTabKey(TAOS * con, Command * cmd) {
   // check 
-  if(cmd->command[0] == 0) { 
+  if(cmd->commandSize == 0) { 
     // empty
     showHelp(con, cmd);
     return ;
@@ -277,6 +278,7 @@ void pressTabKey(TAOS * con, Command * cmd) {
   SWords* command = (SWords *)malloc(sizeof(SWords));
   memset(command, 0, sizeof(SWords));
   command->source = cmd->command;
+  command->source_len = cmd->commandSize;
   parseCommand(command);
 
   // if have many , default match first, if press tab again , switch to next
