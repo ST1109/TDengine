@@ -19,6 +19,9 @@
 // press tab key
 void pressTabKey(TAOS * con, Command * cmd);
 
+// press othr key
+void pressOtherKey(char c);
+
 // init shell auto funciton , shell start call once 
 bool shellAutoInit();
 

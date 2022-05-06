@@ -291,3 +291,10 @@ void pressTabKey(TAOS * con, Command * cmd) {
   printScreen(con, cmd, match);
   freeCommand(command);
 }
+
+// press othr key
+void pressOtherKey(char c) {
+  // reset global variant
+  firstMatchIndex = -1;
+  lastMatchIndex  = -1;
+}
