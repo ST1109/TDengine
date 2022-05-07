@@ -86,7 +86,7 @@ void parseCommand(SWords * command) {
 
   bool lastBlank = false;
   for (int i = 0; i <= size; i++) {
-    if (p[i] == ' ' || p[i] == 0) {
+    if (p[i] == ' ' || i == size) {
       // check continue blank like '    '
       if(p[i] == ' ') {
         if (lastBlank) {
