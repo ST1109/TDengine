@@ -51,6 +51,8 @@ SWords shellCommands[] = {
 
 int32_t firstMatchIndex = -1; // first match shellCommands index
 int32_t lastMatchIndex  = -1; // last match shellCommands index
+int32_t curMatchIndex   = -1; // current match shellCommands index
+
 
 #define SHELL_COMMAND_COUNT() (sizeof(shellCommands) / sizeof(SWords))
 
@@ -159,8 +161,12 @@ void shellAutoExit() {
 int32_t compareCommand(SWords * cmd1, SWords * cmd2) {
   SWord * word1 = cmd1->head;
   SWord * word2 = cmd2->head;
-  for (int32_t i = 0; i < cmd1->count; i++) {
 
+  if(word1 == NULL || word2 == NULL) {
+    return -1;
+  }
+
+  for (int32_t i = 0; i < cmd1->count; i++) {
     if(word1->len == word2->len) {
       if (strncasecmp(word1->word, word2->word, word1->len) != 0)
         return -1; 
@@ -180,7 +186,7 @@ int32_t compareCommand(SWords * cmd1, SWords * cmd2) {
     // move next
     word1 = word1->next;
     word2 = word2->next;
-    if(word1 == NULL && word2 == NULL) {
+    if(word1 == NULL || word2 == NULL) {
       return -1;
     }
   }
@@ -208,7 +214,7 @@ SWords * matchCommand(SWords * command) {
     if (index != -1) {
       if (firstMatchIndex == -1)
         firstMatchIndex = i;
-      lastMatchIndex = i;
+      curMatchIndex = i;
       return &shellCommands[i];
     }
   }
@@ -220,7 +226,7 @@ SWords * matchCommand(SWords * command) {
 // show screen
 void printScreen(TAOS * con, Command * cmd, SWords * match) {
   // modify Command
-  if (firstMatchIndex == -1) {
+  if (firstMatchIndex == -1 || curMatchIndex == -1) {
     // no match
     return ;
   }
@@ -229,12 +235,15 @@ void printScreen(TAOS * con, Command * cmd, SWords * match) {
   const char * str = NULL;
   int strLen = 0; 
 
-  if (firstMatchIndex == lastMatchIndex) {
+  if (firstMatchIndex == curMatchIndex) {
     // first press tab
     SWord * word = MATCH_WORD(match);
     str = word->word + match->matchLen;
     strLen = word->len - match->matchLen;
+    lastMatchIndex = firstMatchIndex;
   } else {
+    if (lastMatchIndex == -1)
+      return ;
     // continue to press tab any times
     SWords * last = &shellCommands[lastMatchIndex];
     int count = MATCH_WORD(last)->len;
@@ -255,6 +264,8 @@ void printScreen(TAOS * con, Command * cmd, SWords * match) {
     SWord * word = MATCH_WORD(match);
     str = word->word;
     strLen = word->len;
+    // set current to last
+    lastMatchIndex = curMatchIndex;
   }
   
   // insert new
@@ -267,14 +278,7 @@ void showHelp(TAOS * con, Command * cmd) {
 }
 
 // main key press tab
-void pressTabKey(TAOS * con, Command * cmd) {
-  // check 
-  if(cmd->commandSize == 0) { 
-    // empty
-    showHelp(con, cmd);
-    return ;
-  } 
-
+void firstMatchCommand(TAOS * con, Command * cmd) {
   // parse command
   SWords* command = (SWords *)malloc(sizeof(SWords));
   memset(command, 0, sizeof(SWords));
@@ -295,9 +299,58 @@ void pressTabKey(TAOS * con, Command * cmd) {
   freeCommand(command);
 }
 
+// next Match Command
+void nextMatchCommand(TAOS * con, Command * cmd, SWords * firstMatch) {
+  SWords* command = (SWords *)malloc(sizeof(SWords));
+  memset(command, 0, sizeof(SWords));
+
+  // set source and source_len
+  command->source = firstMatch->source;
+  SWord * word = firstMatch->head;
+  if (word == NULL)
+    return ;
+  for (int i = 0; i < firstMatch->matchIndex && word; i++) {
+    command->source_len += word->len + 1; // 1 is blank
+    word = word->next;
+  }
+  command->source_len += firstMatch->matchLen;
+  
+  parseCommand(command);
+
+  // if have many , default match first, if press tab again , switch to next
+  SWords * match = matchCommand(command);
+  if (match == NULL) {
+    // not match , nothing to do
+    freeCommand(command);
+    return ;
+  }
+
+  // print to screen
+  printScreen(con, cmd, match);
+  freeCommand(command);
+}
+
+
+// main key press tab
+void pressTabKey(TAOS * con, Command * cmd) {
+  // check 
+  if(cmd->commandSize == 0) { 
+    // empty
+    showHelp(con, cmd);
+    return ;
+  } 
+
+  if (firstMatchIndex == -1) {
+    firstMatchCommand(con, cmd);
+  } else {
+    nextMatchCommand(con, cmd, &shellCommands[firstMatchIndex]);
+  }
+}
+
 // press othr key
 void pressOtherKey(char c) {
   // reset global variant
   firstMatchIndex = -1;
   lastMatchIndex  = -1;
+  curMatchIndex   = -1;
 }
