@@ -48,7 +48,7 @@ int32_t tSTSchemaCreate(SSchema *pSchema, int32_t nCols, int32_t sver, STSchema 
   SSchema  *pColumn;
   STColumn *pTColumn;
 
-  pTSchema = taosMemoryMalloc(sizeof(*pTSchema) + sizeof(STColumn) * (nCols - 1));
+  pTSchema = taosMemoryMalloc(sizeof(*pTSchema) + sizeof(STColumn) * nCols);
   if (pTSchema == NULL) {
     terrno = TSDB_CODE_OUT_OF_MEMORY;
     return -1;
@@ -58,25 +58,25 @@ int32_t tSTSchemaCreate(SSchema *pSchema, int32_t nCols, int32_t sver, STSchema 
   pTSchema->numOfCols = nCols - 1;
   pTSchema->version = sver;
   pTSchema->flen = 0;
-  pTSchema->tlen = sizeof(TSKEY);
+  pTSchema->tlen = 0;
 
-  pColumn = &pSchema[1];
-  pTColumn = &pTSchema->columns[0];
-  for (int32_t iCol = 1; iCol < nCols; iCol++) {
+  for (int32_t iCol = 0; iCol < nCols; iCol++) {
+    pColumn = &pSchema[iCol];
+    pTColumn = &pTSchema->columns[iCol];
+
     pTColumn->colId = pColumn->colId;
     pTColumn->type = pColumn->type;
     pTColumn->flags = pColumn->flags;
     pTColumn->bytes = pColumn->bytes;
     pTColumn->offset = pTSchema->flen;
 
-    pTSchema->flen += TYPE_BYTES[pColumn->type];
+    if (iCol) {
+      pTSchema->flen += TYPE_BYTES[pColumn->type];
+    }
     pTSchema->tlen += TYPE_BYTES[pColumn->type];
     if (IS_VAR_DATA_TYPE(pColumn->type)) {
       pTSchema->tlen = pTSchema->tlen + pColumn->bytes + 5;
     }
-
-    pColumn++;
-    pTColumn++;
   }
 
   *ppTSchema = pTSchema;
@@ -85,7 +85,7 @@ int32_t tSTSchemaCreate(SSchema *pSchema, int32_t nCols, int32_t sver, STSchema 
 
 void tSTSchemaDestroy(STSchema *pTSchema) { taosMemoryFree(pTSchema); }
 
-int32_t tRowBuilderInit(STSRowBuilder *pRB, const SSchema *pSchema, int nCols) {
+int32_t tRowBuilderInit(STSRowBuilder *pRB, SSchema *pSchema, int32_t nCols, int32_t sver) {
   // TODO
   return 0;
 }
@@ -104,16 +104,15 @@ int32_t tRowBuilderReset(STSRowBuilder *pRB) {
   return 0;
 }
 
-int32_t tRowBuilderPut(STSRowBuilder *pRB, int16_t cid, const uint8_t *pData, uint32_t nData, int32_t flags) {
+int32_t tRowBuilderPut(STSRowBuilder *pRB, int16_t cid, const uint8_t *pData, uint32_t nData) {
   // find the column to put data
-  if (pRB->pTColumn->colId > cid) {
-    // left search
-  } else if (pRB->pTColumn->colId < cid) {
+  if (pRB->pTColumn->colId < cid) {
     // right search
+  } else if (pRB->pTColumn->colId > cid) {
+    // left search
   }
 
   if (pRB->pTColumn->flags & COL_VAL_SET) {
-    // duplicate value set
     return -1;
   }
 

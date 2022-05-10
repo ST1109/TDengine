@@ -42,10 +42,10 @@ int32_t tEncodeSTSRow(SEncoder *pEncoder, const STSRow2 *pRow);
 int32_t tDecodeSTSRow(SDecoder *pDecoder, STSRow2 *pRow);
 
 // STSRowBuilder
-int32_t tRowBuilderInit(STSRowBuilder *pRB, const SSchema *pSchema, int nCols);
+int32_t tRowBuilderInit(STSRowBuilder *pRB, SSchema *pSchema, int32_t nCols, int32_t sver);
 int32_t tRowBuilderClear(STSRowBuilder *pRB);
 int32_t tRowBuilderReset(STSRowBuilder *pRB);
-int32_t tRowBuilderPut(STSRowBuilder *pRB, int16_t cid, const uint8_t *pData, uint32_t nData, int32_t flags);
+int32_t tRowBuilderPut(STSRowBuilder *pRB, int16_t cid, const uint8_t *pData, uint32_t nData);
 int32_t tRowBuilderGet(STSRowBuilder *pRB, const STSRow2 **ppRow);
 
 // STRUCT
@@ -80,7 +80,10 @@ struct STSRow2 {
 struct STSRowBuilder {
   STColumn *pTColumn;
   STSchema *pTSchema;
-  uint8_t  *pBuf;
+  int32_t   nKV;
+  uint8_t  *pKV;
+  int32_t   nTuple;
+  uint8_t  *pTuple;
   STSRow2   row;
 };
 

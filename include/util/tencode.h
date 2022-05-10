@@ -47,38 +47,6 @@ typedef struct {
   SDecoderNode*  dStack;
 } SDecoder;
 
-#define tPut(TYPE, BUF, VAL) ((TYPE*)(BUF))[0] = (VAL)
-#define tGet(TYPE, BUF, VAL) (VAL) = ((TYPE*)(BUF))[0]
-
-#define tRPut16(PDEST, PSRC)                      \
-  ((uint8_t*)(PDEST))[0] = ((uint8_t*)(PSRC))[1]; \
-  ((uint8_t*)(PDEST))[1] = ((uint8_t*)(PSRC))[0];
-
-#define tRPut32(PDEST, PSRC)                      \
-  ((uint8_t*)(PDEST))[0] = ((uint8_t*)(PSRC))[3]; \
-  ((uint8_t*)(PDEST))[1] = ((uint8_t*)(PSRC))[2]; \
-  ((uint8_t*)(PDEST))[2] = ((uint8_t*)(PSRC))[1]; \
-  ((uint8_t*)(PDEST))[3] = ((uint8_t*)(PSRC))[0];
-
-#define tRPut64(PDEST, PSRC)                      \
-  ((uint8_t*)(PDEST))[0] = ((uint8_t*)(PSRC))[7]; \
-  ((uint8_t*)(PDEST))[1] = ((uint8_t*)(PSRC))[6]; \
-  ((uint8_t*)(PDEST))[2] = ((uint8_t*)(PSRC))[5]; \
-  ((uint8_t*)(PDEST))[3] = ((uint8_t*)(PSRC))[4]; \
-  ((uint8_t*)(PDEST))[4] = ((uint8_t*)(PSRC))[3]; \
-  ((uint8_t*)(PDEST))[5] = ((uint8_t*)(PSRC))[2]; \
-  ((uint8_t*)(PDEST))[6] = ((uint8_t*)(PSRC))[1]; \
-  ((uint8_t*)(PDEST))[7] = ((uint8_t*)(PSRC))[0];
-
-#define tRGet16 tRPut16
-#define tRGet32 tRPut32
-#define tRGet64 tRPut64
-
-#define TD_CODER_POS(CODER)                            ((CODER)->pos)
-#define TD_CODER_CURRENT(CODER)                        ((CODER)->data + (CODER)->pos)
-#define TD_CODER_MOVE_POS(CODER, MOVE)                 ((CODER)->pos += (MOVE))
-#define TD_CODER_CHECK_CAPACITY_FAILED(CODER, EXPSIZE) (((CODER)->size - (CODER)->pos) < (EXPSIZE))
-
 #define tEncodeSize(E, S, SIZE, RET) \
   do {                               \
     SEncoder coder = {0};            \
@@ -147,15 +115,39 @@ static int32_t tDecodeCStrAndLen(SDecoder* pCoder, const char** val, uint32_t* l
 static int32_t tDecodeCStr(SDecoder* pCoder, const char** val);
 static int32_t tDecodeCStrTo(SDecoder* pCoder, char* val);
 
-/* ------------------------ IMPL ------------------------ */
-#define TD_ENCODE_MACRO(CODER, VAL, TYPE, BITS)                        \
-  if ((CODER)->data) {                                                 \
-    if (TD_CODER_CHECK_CAPACITY_FAILED(CODER, sizeof(VAL))) return -1; \
-    tPut(TYPE, TD_CODER_CURRENT(CODER), (VAL));                        \
-  }                                                                    \
-  TD_CODER_MOVE_POS(CODER, sizeof(VAL));                               \
-  return 0;
+#define tPut(TYPE, BUF, VAL) ((TYPE*)(BUF))[0] = (VAL)
+#define tGet(TYPE, BUF, VAL) (VAL) = ((TYPE*)(BUF))[0]
 
+#define tRPut16(PDEST, PSRC)                      \
+  ((uint8_t*)(PDEST))[0] = ((uint8_t*)(PSRC))[1]; \
+  ((uint8_t*)(PDEST))[1] = ((uint8_t*)(PSRC))[0];
+
+#define tRPut32(PDEST, PSRC)                      \
+  ((uint8_t*)(PDEST))[0] = ((uint8_t*)(PSRC))[3]; \
+  ((uint8_t*)(PDEST))[1] = ((uint8_t*)(PSRC))[2]; \
+  ((uint8_t*)(PDEST))[2] = ((uint8_t*)(PSRC))[1]; \
+  ((uint8_t*)(PDEST))[3] = ((uint8_t*)(PSRC))[0];
+
+#define tRPut64(PDEST, PSRC)                      \
+  ((uint8_t*)(PDEST))[0] = ((uint8_t*)(PSRC))[7]; \
+  ((uint8_t*)(PDEST))[1] = ((uint8_t*)(PSRC))[6]; \
+  ((uint8_t*)(PDEST))[2] = ((uint8_t*)(PSRC))[5]; \
+  ((uint8_t*)(PDEST))[3] = ((uint8_t*)(PSRC))[4]; \
+  ((uint8_t*)(PDEST))[4] = ((uint8_t*)(PSRC))[3]; \
+  ((uint8_t*)(PDEST))[5] = ((uint8_t*)(PSRC))[2]; \
+  ((uint8_t*)(PDEST))[6] = ((uint8_t*)(PSRC))[1]; \
+  ((uint8_t*)(PDEST))[7] = ((uint8_t*)(PSRC))[0];
+
+#define tRGet16 tRPut16
+#define tRGet32 tRPut32
+#define tRGet64 tRPut64
+
+#define TD_CODER_POS(CODER)                            ((CODER)->pos)
+#define TD_CODER_CURRENT(CODER)                        ((CODER)->data + (CODER)->pos)
+#define TD_CODER_MOVE_POS(CODER, MOVE)                 ((CODER)->pos += (MOVE))
+#define TD_CODER_CHECK_CAPACITY_FAILED(CODER, EXPSIZE) (((CODER)->size - (CODER)->pos) < (EXPSIZE))
+
+/* ------------------------ IMPL ------------------------ */
 #define TD_ENCODE_VARIANT_MACRO(CODER, VAL)                       \
   while ((VAL) >= ENCODE_LIMIT) {                                 \
     if ((CODER)->data) {                                          \
@@ -172,12 +164,6 @@ static int32_t tDecodeCStrTo(SDecoder* pCoder, char* val);
     TD_CODER_CURRENT(CODER)[0] = (uint8_t)(VAL);                  \
   }                                                               \
   TD_CODER_MOVE_POS(CODER, 1);                                    \
-  return 0;
-
-#define TD_DECODE_MACRO(CODER, PVAL, TYPE, BITS)                         \
-  if (TD_CODER_CHECK_CAPACITY_FAILED(CODER, sizeof(*(PVAL)))) return -1; \
-  tGet(TYPE, TD_CODER_CURRENT(CODER), *(PVAL));                          \
-  TD_CODER_MOVE_POS(CODER, sizeof(*(PVAL)));                             \
   return 0;
 
 #define TD_DECODE_VARIANT_MACRO(CODER, PVAL, TYPE)           \
@@ -219,16 +205,66 @@ static FORCE_INLINE int32_t tEncodeI8(SEncoder* pCoder, int8_t val) {
 }
 
 // 16
-static FORCE_INLINE int32_t tEncodeU16(SEncoder* pCoder, uint16_t val) { TD_ENCODE_MACRO(pCoder, val, uint16_t, 16); }
-static FORCE_INLINE int32_t tEncodeI16(SEncoder* pCoder, int16_t val) { TD_ENCODE_MACRO(pCoder, val, int16_t, 16); }
+static FORCE_INLINE int32_t tEncodeU16(SEncoder* pCoder, uint16_t val) {
+  if (pCoder->data) {
+    if (TD_CODER_CHECK_CAPACITY_FAILED(pCoder, sizeof(val))) return -1;
+    tPut(uint16_t, TD_CODER_CURRENT(pCoder), val);
+  }
+  TD_CODER_MOVE_POS(pCoder, sizeof(val));
+  return 0;
+}
+static FORCE_INLINE int32_t tEncodeI16(SEncoder* pCoder, int16_t val) {
+  if (pCoder->data) {
+    if (TD_CODER_CHECK_CAPACITY_FAILED(pCoder, sizeof(val))) return -1;
+    tPut(int16_t, TD_CODER_CURRENT(pCoder), val);
+  }
+  TD_CODER_MOVE_POS(pCoder, sizeof(val));
+  return 0;
+}
 // 32
-static FORCE_INLINE int32_t tEncodeU32(SEncoder* pCoder, uint32_t val) { TD_ENCODE_MACRO(pCoder, val, uint32_t, 32); }
-static FORCE_INLINE int32_t tEncodeI32(SEncoder* pCoder, int32_t val) { TD_ENCODE_MACRO(pCoder, val, int32_t, 32); }
+static FORCE_INLINE int32_t tEncodeU32(SEncoder* pCoder, uint32_t val) {
+  if (pCoder->data) {
+    if (TD_CODER_CHECK_CAPACITY_FAILED(pCoder, sizeof(val))) return -1;
+    tPut(uint32_t, TD_CODER_CURRENT(pCoder), val);
+  }
+  TD_CODER_MOVE_POS(pCoder, sizeof(val));
+  return 0;
+}
+static FORCE_INLINE int32_t tEncodeI32(SEncoder* pCoder, int32_t val) {
+  if (pCoder->data) {
+    if (TD_CODER_CHECK_CAPACITY_FAILED(pCoder, sizeof(val))) return -1;
+    tPut(int32_t, TD_CODER_CURRENT(pCoder), val);
+  }
+  TD_CODER_MOVE_POS(pCoder, sizeof(val));
+  return 0;
+}
 // 64
-static FORCE_INLINE int32_t tEncodeU64(SEncoder* pCoder, uint64_t val) { TD_ENCODE_MACRO(pCoder, val, uint64_t, 64); }
-static FORCE_INLINE int32_t tEncodeI64(SEncoder* pCoder, int64_t val) { TD_ENCODE_MACRO(pCoder, val, int64_t, 64); }
+static FORCE_INLINE int32_t tEncodeU64(SEncoder* pCoder, uint64_t val) {
+  if (pCoder->data) {
+    if (TD_CODER_CHECK_CAPACITY_FAILED(pCoder, sizeof(val))) return -1;
+    tPut(uint64_t, TD_CODER_CURRENT(pCoder), val);
+  }
+  TD_CODER_MOVE_POS(pCoder, sizeof(val));
+  return 0;
+}
+static FORCE_INLINE int32_t tEncodeI64(SEncoder* pCoder, int64_t val) {
+  if (pCoder->data) {
+    if (TD_CODER_CHECK_CAPACITY_FAILED(pCoder, sizeof(val))) return -1;
+    tPut(int64_t, TD_CODER_CURRENT(pCoder), val);
+  }
+  TD_CODER_MOVE_POS(pCoder, sizeof(val));
+  return 0;
+}
 // 16v
-static FORCE_INLINE int32_t tEncodeU16v(SEncoder* pCoder, uint16_t val) { TD_ENCODE_VARIANT_MACRO(pCoder, val); }
+static FORCE_INLINE int32_t tEncodeU16v(SEncoder* pCoder, uint16_t val) {
+  if (pCoder->data) {
+    if (TD_CODER_CHECK_CAPACITY_FAILED(pCoder, sizeof(val))) return -1;
+    tPut(int32_t, TD_CODER_CURRENT(pCoder), val);
+  }
+  TD_CODER_MOVE_POS(pCoder, sizeof(val));
+  return 0;
+  TD_ENCODE_VARIANT_MACRO(pCoder, val);
+}
 static FORCE_INLINE int32_t tEncodeI16v(SEncoder* pCoder, int16_t val) {
   return tEncodeU16v(pCoder, ZIGZAGE(int16_t, val));
 }
@@ -299,14 +335,44 @@ static FORCE_INLINE int32_t tDecodeI8(SDecoder* pCoder, int8_t* val) {
 }
 
 // 16
-static FORCE_INLINE int32_t tDecodeU16(SDecoder* pCoder, uint16_t* val) { TD_DECODE_MACRO(pCoder, val, uint16_t, 16); }
-static FORCE_INLINE int32_t tDecodeI16(SDecoder* pCoder, int16_t* val) { TD_DECODE_MACRO(pCoder, val, int16_t, 16); }
+static FORCE_INLINE int32_t tDecodeU16(SDecoder* pCoder, uint16_t* val) {
+  if (TD_CODER_CHECK_CAPACITY_FAILED(pCoder, sizeof(*(val)))) return -1;
+  tGet(uint16_t, TD_CODER_CURRENT(pCoder), *(val));
+  TD_CODER_MOVE_POS(pCoder, sizeof(*(val)));
+  return 0;
+}
+static FORCE_INLINE int32_t tDecodeI16(SDecoder* pCoder, int16_t* val) {
+  if (TD_CODER_CHECK_CAPACITY_FAILED(pCoder, sizeof(*(val)))) return -1;
+  tGet(int16_t, TD_CODER_CURRENT(pCoder), *(val));
+  TD_CODER_MOVE_POS(pCoder, sizeof(*(val)));
+  return 0;
+}
 // 32
-static FORCE_INLINE int32_t tDecodeU32(SDecoder* pCoder, uint32_t* val) { TD_DECODE_MACRO(pCoder, val, uint32_t, 32); }
-static FORCE_INLINE int32_t tDecodeI32(SDecoder* pCoder, int32_t* val) { TD_DECODE_MACRO(pCoder, val, int32_t, 32); }
+static FORCE_INLINE int32_t tDecodeU32(SDecoder* pCoder, uint32_t* val) {
+  if (TD_CODER_CHECK_CAPACITY_FAILED(pCoder, sizeof(*(val)))) return -1;
+  tGet(uint32_t, TD_CODER_CURRENT(pCoder), *(val));
+  TD_CODER_MOVE_POS(pCoder, sizeof(*(val)));
+  return 0;
+}
+static FORCE_INLINE int32_t tDecodeI32(SDecoder* pCoder, int32_t* val) {
+  if (TD_CODER_CHECK_CAPACITY_FAILED(pCoder, sizeof(*(val)))) return -1;
+  tGet(int32_t, TD_CODER_CURRENT(pCoder), *(val));
+  TD_CODER_MOVE_POS(pCoder, sizeof(*(val)));
+  return 0;
+}
 // 64
-static FORCE_INLINE int32_t tDecodeU64(SDecoder* pCoder, uint64_t* val) { TD_DECODE_MACRO(pCoder, val, uint64_t, 64); }
-static FORCE_INLINE int32_t tDecodeI64(SDecoder* pCoder, int64_t* val) { TD_DECODE_MACRO(pCoder, val, int64_t, 64); }
+static FORCE_INLINE int32_t tDecodeU64(SDecoder* pCoder, uint64_t* val) {
+  if (TD_CODER_CHECK_CAPACITY_FAILED(pCoder, sizeof(*(val)))) return -1;
+  tGet(uint64_t, TD_CODER_CURRENT(pCoder), *(val));
+  TD_CODER_MOVE_POS(pCoder, sizeof(*(val)));
+  return 0;
+}
+static FORCE_INLINE int32_t tDecodeI64(SDecoder* pCoder, int64_t* val) {
+  if (TD_CODER_CHECK_CAPACITY_FAILED(pCoder, sizeof(*(val)))) return -1;
+  tGet(int64_t, TD_CODER_CURRENT(pCoder), *(val));
+  TD_CODER_MOVE_POS(pCoder, sizeof(*(val)));
+  return 0;
+}
 
 // 16v
 static FORCE_INLINE int32_t tDecodeU16v(SDecoder* pCoder, uint16_t* val) {
@@ -455,6 +521,16 @@ static FORCE_INLINE void* tDecoderMalloc(SDecoder* pCoder, int32_t size) {
     p = (void*)&pMem[1];
   }
   return p;
+}
+
+static FORCE_INLINE int32_t tPutBinary(uint8_t* p, const uint8_t* pData, uint32_t nData) {
+  // TODO
+  return 0;
+}
+
+static FORCE_INLINE int32_t tGetBinary(uint8_t* p, const uint8_t** ppData, uint32_t* nData) {
+  // TODO
+  return 0;
 }
 
 #ifdef __cplusplus
