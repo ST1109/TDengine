@@ -61,7 +61,6 @@ struct STSchema {
   int32_t numOfCols;  // Number of columns appended
   int32_t version;    // schema version
   int32_t flen;       // First part length in a STpRow after the header part
-  int32_t vlen;       // pure value part length, excluded the overhead (bytes only)
   int32_t tlen;       // maximum length of a STpRow without the header part
                       // (sizeof(VarDataOffsetT) + sizeof(VarDataLenT) + (bytes))
   STColumn columns[];
@@ -137,7 +136,6 @@ struct STSRowBuilder {
 #define schemaVersion(s)  ((s)->version)
 #define schemaTLen(s)     ((s)->tlen)
 #define schemaFLen(s)     ((s)->flen)
-#define schemaVLen(s)     ((s)->vlen)
 #define schemaColAt(s, i) ((s)->columns + i)
 #define tdFreeSchema(s)   taosMemoryFreeClear((s))
 

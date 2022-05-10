@@ -45,6 +45,8 @@ inline int32_t tDecodeSTSRow(SDecoder *pDecoder, STSRow2 *pRow) {
 
 int32_t tSTSchemaCreate(SSchema *pSchema, int32_t nCols, int32_t sver, STSchema **ppTSchema) {
   STSchema *pTSchema = NULL;
+  SSchema  *pColumn;
+  STColumn *pTColumn;
 
   pTSchema = taosMemoryMalloc(sizeof(*pTSchema) + sizeof(STColumn) * nCols);
   if (pTSchema == NULL) {
@@ -52,7 +54,29 @@ int32_t tSTSchemaCreate(SSchema *pSchema, int32_t nCols, int32_t sver, STSchema 
     return -1;
   }
 
-  // TODO
+  pTSchema->numOfCols = nCols;
+  pTSchema->version = sver;
+  pTSchema->flen = 0;
+  pTSchema->tlen = 0;
+
+  for (int32_t iCol = 0; iCol < nCols; iCol++) {
+    pColumn = pSchema + iCol;
+    pTColumn = &pTSchema->columns[iCol];
+
+    pTColumn->colId = pColumn->colId;
+    pTColumn->type = pColumn->type;
+    pTColumn->flags = pColumn->flags;
+    pTColumn->bytes = pColumn->bytes;
+    pTColumn->offset = pTSchema->flen;
+
+    if (IS_VAR_DATA_TYPE(pColumn->type)) {
+    } else {
+    }
+
+    pTSchema->flen += TYPE_BYTES[pColumn->type];
+  }
+
+  *ppTSchema = pTSchema;
   return 0;
 }
 
@@ -205,7 +229,6 @@ STSchema *tdGetSchemaFromBuilder(STSchemaBuilder *pBuilder) {
   schemaNCols(pSchema) = pBuilder->nCols;
   schemaTLen(pSchema) = pBuilder->tlen;
   schemaFLen(pSchema) = pBuilder->flen;
-  schemaVLen(pSchema) = pBuilder->vlen;
 
 #ifdef TD_SUPPORT_BITMAP
   schemaTLen(pSchema) += (int)TD_BITMAP_BYTES(schemaNCols(pSchema));
