@@ -19,6 +19,56 @@
 #include "tdatablock.h"
 #include "tlog.h"
 
+inline int32_t tEncodeSTSRow(SEncoder *pEncoder, const STSRow2 *pRow) {
+  if (tEncodeI64(pEncoder, pRow->ts) < 0) return -1;
+  if (tEncodeU32v(pEncoder, pRow->flags) < 0) return -1;
+  if (pRow->flags & TD_KV_ROW) {
+    if (tEncodeI32v(pEncoder, pRow->ncols) < 0) return -1;
+  } else {
+    if (tEncodeI32v(pEncoder, pRow->sver) < 0) return -1;
+  }
+  if (tEncodeBinary(pEncoder, pRow->pData, pRow->nData) < 0) return -1;
+  return 0;
+}
+
+inline int32_t tDecodeSTSRow(SDecoder *pDecoder, STSRow2 *pRow) {
+  if (tDecodeI64(pDecoder, &pRow->ts) < 0) return -1;
+  if (tDecodeU32v(pDecoder, &pRow->flags) < 0) return -1;
+  if (pRow->flags & TD_KV_ROW) {
+    if (tDecodeI32v(pDecoder, &pRow->ncols) < 0) return -1;
+  } else {
+    if (tDecodeI32v(pDecoder, &pRow->sver) < 0) return -1;
+  }
+  if (tDecodeBinary(pDecoder, &pRow->pData, &pRow->nData) < 0) return -1;
+  return 0;
+}
+
+int32_t tRowBuilderInit(STSRowBuilder *pRB, const SSchema *pSchema, int nCols) {
+  // TODO
+  return 0;
+}
+
+int32_t tRowBuilderClear(STSRowBuilder *pRB) {
+  // TODO
+  return 0;
+}
+
+int32_t tRowBuilderReset(STSRowBuilder *pRB) {
+  // TODO
+  return 0;
+}
+
+int32_t tRowBuilderPut(STSRowBuilder *pRB, int16_t cid, const uint8_t *pData, int32_t nData, int32_t flags) {
+  // TODO
+  return 0;
+}
+
+int32_t tRowBuilderGet(STSRowBuilder *pRB, const STSRow2 *pRow) {
+  // TODO
+  return 0;
+}
+
+#if 1  // ======================
 static void dataColSetNEleNull(SDataCol *pCol, int nEle);
 #if 0
 static void tdMergeTwoDataCols(SDataCols *target, SDataCols *src1, int *iter1, int limit1, SDataCols *src2, int *iter2,
@@ -439,3 +489,4 @@ SKVRow tdGetKVRowFromBuilder(SKVRowBuilder *pBuilder) {
 
   return row;
 }
+#endif

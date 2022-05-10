@@ -21,10 +21,68 @@
 #include "ttypes.h"
 #include "tutil.h"
 
+#include "tencode.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+typedef struct STColumn      STColumn;
+typedef struct STSchema      STSchema;
+typedef struct STSRow2       STSRow2;
+typedef struct STSRowBuilder STSRowBuilder;
+
+// STSchema
+
+// STSRow2
+int32_t tEncodeSTSRow(SEncoder *pEncoder, const STSRow2 *pRow);
+int32_t tDecodeSTSRow(SDecoder *pDecoder, STSRow2 *pRow);
+
+// STSRowBuilder
+// int32_t tRowBuilderInit(STSRowBuilder *pRB, const SSchema *pSchema, int nCols);
+// int32_t tRowBuilderClear(STSRowBuilder *pRB);
+// int32_t tRowBuilderReset(STSRowBuilder *pRB);
+// int32_t tRowBuilderPut(STSRowBuilder *pRB, int16_t cid, const uint8_t *pData, int32_t nData, int32_t flags);
+// int32_t tRowBuilderGet(STSRowBuilder *pRB, const STSRow2 *pRow);
+
+// STRUCT
+struct STColumn {
+  col_id_t colId;   // column ID(start from PRIMARYKEY_TIMESTAMP_COL_ID(1))
+  int8_t   type;    // column type
+  int8_t   flags;   // flags: 0 no index, 1 SCHEMA_SMA_ON, 2 SCHEMA_IDX_ON
+  int32_t  bytes;   // column bytes (0~16M)
+  int32_t  offset;  // point offset in STpRow after the header part.
+};
+
+struct STSchema {
+  int32_t      numOfCols;  // Number of columns appended
+  schema_ver_t version;    // schema version
+  uint16_t     flen;       // First part length in a STpRow after the header part
+  int32_t      vlen;       // pure value part length, excluded the overhead (bytes only)
+  int32_t      tlen;       // maximum length of a STpRow without the header part
+                           // (sizeof(VarDataOffsetT) + sizeof(VarDataLenT) + (bytes))
+  STColumn columns[];
+};
+
+#define TD_KV_ROW 0x1
+struct STSRow2 {
+  TSKEY    ts;
+  uint32_t flags;
+  union {
+    int32_t sver;
+    int32_t ncols;
+  };
+  uint32_t       nData;
+  const uint8_t *pData;
+};
+
+struct STSRowBuilder {
+  STSchema *pSchema;
+  uint8_t  *pBuf;
+  STSRow2   row;
+};
+
+#if 1
 // Imported since 3.0 and use bitmap to demonstrate None/Null/Norm, while use Null/Norm below 3.0 without of bitmap.
 #define TD_SUPPORT_BITMAP
 #define TD_SUPPORT_READ2
@@ -59,14 +117,6 @@ extern "C" {
   } while (0);
 
 // ----------------- TSDB COLUMN DEFINITION
-typedef struct {
-  col_id_t colId;   // column ID(start from PRIMARYKEY_TIMESTAMP_COL_ID(1))
-  int8_t   type;    // column type
-  int8_t   flags;   // flags: 0 no index, 1 SCHEMA_SMA_ON, 2 SCHEMA_IDX_ON
-  int32_t  bytes;   // column bytes (0~16M)
-  int32_t  offset;  // point offset in STpRow after the header part.
-} STColumn;
-
 #define colType(col)   ((col)->type)
 #define colFlags(col)  ((col)->flags)
 #define colColId(col)  ((col)->colId)
@@ -80,16 +130,6 @@ typedef struct {
 #define colSetOffset(col, o) (colOffset(col) = (o))
 
 // ----------------- TSDB SCHEMA DEFINITION
-typedef struct {
-  int32_t      numOfCols;  // Number of columns appended
-  schema_ver_t version;    // schema version
-  uint16_t     flen;       // First part length in a STpRow after the header part
-  int32_t      vlen;       // pure value part length, excluded the overhead (bytes only)
-  int32_t      tlen;       // maximum length of a STpRow without the header part
-                           // (sizeof(VarDataOffsetT) + sizeof(VarDataLenT) + (bytes))
-  STColumn columns[];
-} STSchema;
-
 #define schemaNCols(s)    ((s)->numOfCols)
 #define schemaVersion(s)  ((s)->version)
 #define schemaTLen(s)     ((s)->tlen)
@@ -364,6 +404,7 @@ static FORCE_INLINE int32_t tdAddColToKVRow(SKVRowBuilder *pBuilder, col_id_t co
 
   return 0;
 }
+#endif
 
 #ifdef __cplusplus
 }
