@@ -59,7 +59,6 @@ extern "C" {
   } while (0);
 
 // ----------------- TSDB COLUMN DEFINITION
-#pragma pack(push, 1)
 typedef struct {
   col_id_t colId;   // column ID(start from PRIMARYKEY_TIMESTAMP_COL_ID(1))
   int8_t   type;    // column type
@@ -67,7 +66,6 @@ typedef struct {
   int32_t  bytes;   // column bytes (0~16M)
   int32_t  offset;  // point offset in STpRow after the header part.
 } STColumn;
-#pragma pack(pop)
 
 #define colType(col)   ((col)->type)
 #define colFlags(col)  ((col)->flags)
@@ -99,26 +97,6 @@ typedef struct {
 #define schemaVLen(s)     ((s)->vlen)
 #define schemaColAt(s, i) ((s)->columns + i)
 #define tdFreeSchema(s)   taosMemoryFreeClear((s))
-
-STSchema *tdDupSchema(const STSchema *pSchema);
-int32_t   tdEncodeSchema(void **buf, STSchema *pSchema);
-void     *tdDecodeSchema(void *buf, STSchema **pRSchema);
-
-static FORCE_INLINE int32_t comparColId(const void *key1, const void *key2) {
-  if (*(int16_t *)key1 > ((STColumn *)key2)->colId) {
-    return 1;
-  } else if (*(int16_t *)key1 < ((STColumn *)key2)->colId) {
-    return -1;
-  } else {
-    return 0;
-  }
-}
-
-static FORCE_INLINE STColumn *tdGetColOfID(STSchema *pSchema, int16_t colId) {
-  void *ptr = bsearch(&colId, (void *)pSchema->columns, schemaNCols(pSchema), sizeof(STColumn), comparColId);
-  if (ptr == NULL) return NULL;
-  return (STColumn *)ptr;
-}
 
 // ----------------- SCHEMA BUILDER DEFINITION
 typedef struct {
