@@ -1204,6 +1204,7 @@ int tscSmlInsert(TAOS* taos, TAOS_SML_DATA_POINT* points, int numPoint, SSmlLine
     goto clean_up;
   }
 
+  info->cost.schemaTime = taosGetTimestampUs();
   tscDebug("SML:0x%"PRIx64" modify db schemas", info->id);
   code = modifyDBSchemas(taos, stableSchemas, info);
   if (code != 0) {
@@ -2675,7 +2676,6 @@ int taos_insert_lines(TAOS* taos, char* lines[], int numLines, SMLProtocolType p
     goto cleanup;
   }
 
-  info->cost.schemaTime = taosGetTimestampUs();
   TAOS_SML_DATA_POINT* points = TARRAY_GET_START(lpPoints);
   code = tscSmlInsert(taos, points, (int)numPoints, info);
   if (code != 0) {
