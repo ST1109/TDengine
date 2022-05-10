@@ -106,6 +106,16 @@ int32_t tRowBuilderReset(STSRowBuilder *pRB) {
 
 int32_t tRowBuilderPut(STSRowBuilder *pRB, int16_t cid, const uint8_t *pData, uint32_t nData, int32_t flags) {
   // find the column to put data
+  if (pRB->pTColumn->colId > cid) {
+    // left search
+  } else if (pRB->pTColumn->colId < cid) {
+    // right search
+  }
+
+  if (pRB->pTColumn->flags & COL_VAL_SET) {
+    // duplicate value set
+    return -1;
+  }
 
   // put data
   if (cid == 0) {
@@ -120,6 +130,8 @@ int32_t tRowBuilderPut(STSRowBuilder *pRB, int16_t cid, const uint8_t *pData, ui
       }
     }
   }
+
+  pRB->pTColumn->flags |= COL_VAL_SET;
   return 0;
 }
 

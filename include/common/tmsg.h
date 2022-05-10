@@ -267,9 +267,9 @@ typedef struct {
   SSubmitRspBlock failedBlocks[];
 } SSubmitRsp;
 
-#define COL_SMA_ON  0x1
-#define COL_IDX_ON  0x2
-#define COL_VAL_SET 0x4
+#define COL_SMA_ON  ((int8_t)0x1)
+#define COL_IDX_ON  ((int8_t)0x2)
+#define COL_VAL_SET ((int8_t)0x4)
 typedef struct SSchema {
   int8_t   type;
   int8_t   flags;
