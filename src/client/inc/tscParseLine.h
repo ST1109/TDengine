@@ -75,6 +75,21 @@ typedef struct SSmlSqlInsertBatch {
 #define MAX_SML_SQL_INSERT_BATCHES 512
 
 typedef struct {
+  int32_t code;
+  int32_t lineNum;
+
+  int32_t numOfSTables;
+  int32_t numOfCTables;
+  int32_t numOfCreateSTables;
+
+  int64_t parseTime;
+  int64_t schemaTime;
+  int64_t insertBindTime;
+  int64_t insertRpcTime;
+  int64_t endTime;
+} SSmlCostInfo;
+
+typedef struct {
   uint64_t id;
   SMLProtocolType protocol;
   SMLTimeStampType tsType;
@@ -86,6 +101,7 @@ typedef struct {
   pthread_cond_t batchCond;
   int32_t numBatches;
   SSmlSqlInsertBatch batches[MAX_SML_SQL_INSERT_BATCHES];
+  SSmlCostInfo      cost;
 } SSmlLinesInfo;
 
 char* addEscapeCharToString(char *str, int32_t len);
