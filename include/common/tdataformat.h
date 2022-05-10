@@ -42,27 +42,26 @@ int32_t tEncodeSTSRow(SEncoder *pEncoder, const STSRow2 *pRow);
 int32_t tDecodeSTSRow(SDecoder *pDecoder, STSRow2 *pRow);
 
 // STSRowBuilder
-// int32_t tRowBuilderInit(STSRowBuilder *pRB, const SSchema *pSchema, int nCols);
-// int32_t tRowBuilderClear(STSRowBuilder *pRB);
-// int32_t tRowBuilderReset(STSRowBuilder *pRB);
-// int32_t tRowBuilderPut(STSRowBuilder *pRB, int16_t cid, const uint8_t *pData, int32_t nData, int32_t flags);
-// int32_t tRowBuilderGet(STSRowBuilder *pRB, const STSRow2 *pRow);
+int32_t tRowBuilderInit(STSRowBuilder *pRB, const SSchema *pSchema, int nCols);
+int32_t tRowBuilderClear(STSRowBuilder *pRB);
+int32_t tRowBuilderReset(STSRowBuilder *pRB);
+int32_t tRowBuilderPut(STSRowBuilder *pRB, int16_t cid, const uint8_t *pData, uint32_t nData, int32_t flags);
+int32_t tRowBuilderGet(STSRowBuilder *pRB, const STSRow2 **ppRow);
 
 // STRUCT
 struct STColumn {
-  col_id_t colId;   // column ID(start from PRIMARYKEY_TIMESTAMP_COL_ID(1))
-  int8_t   type;    // column type
-  int8_t   flags;   // flags: 0 no index, 1 SCHEMA_SMA_ON, 2 SCHEMA_IDX_ON
-  int32_t  bytes;   // column bytes (0~16M)
-  int32_t  offset;  // point offset in STpRow after the header part.
+  col_id_t colId;
+  int8_t   type;
+  int8_t   flags;
+  int32_t  bytes;
+  int32_t  offset;
 };
 
 struct STSchema {
-  int32_t numOfCols;  // Number of columns appended
-  int32_t version;    // schema version
-  int32_t flen;       // First part length in a STpRow after the header part
-  int32_t tlen;       // maximum length of a STpRow without the header part
-                      // (sizeof(VarDataOffsetT) + sizeof(VarDataLenT) + (bytes))
+  int32_t  numOfCols;
+  int32_t  version;
+  int32_t  flen;  // fix length part
+  int32_t  tlen;  // max length of the row
   STColumn columns[];
 };
 
@@ -79,7 +78,8 @@ struct STSRow2 {
 };
 
 struct STSRowBuilder {
-  STSchema *pSchema;
+  STColumn *pTColumn;
+  STSchema *pTSchema;
   uint8_t  *pBuf;
   STSRow2   row;
 };

@@ -48,32 +48,35 @@ int32_t tSTSchemaCreate(SSchema *pSchema, int32_t nCols, int32_t sver, STSchema 
   SSchema  *pColumn;
   STColumn *pTColumn;
 
-  pTSchema = taosMemoryMalloc(sizeof(*pTSchema) + sizeof(STColumn) * nCols);
+  pTSchema = taosMemoryMalloc(sizeof(*pTSchema) + sizeof(STColumn) * (nCols - 1));
   if (pTSchema == NULL) {
     terrno = TSDB_CODE_OUT_OF_MEMORY;
     return -1;
   }
 
-  pTSchema->numOfCols = nCols;
+  // skip the first column which is TIMESTAMP
+  pTSchema->numOfCols = nCols - 1;
   pTSchema->version = sver;
   pTSchema->flen = 0;
-  pTSchema->tlen = 0;
+  pTSchema->tlen = sizeof(TSKEY);
 
-  for (int32_t iCol = 0; iCol < nCols; iCol++) {
-    pColumn = pSchema + iCol;
-    pTColumn = &pTSchema->columns[iCol];
-
+  pColumn = &pSchema[1];
+  pTColumn = &pTSchema->columns[0];
+  for (int32_t iCol = 1; iCol < nCols; iCol++) {
     pTColumn->colId = pColumn->colId;
     pTColumn->type = pColumn->type;
     pTColumn->flags = pColumn->flags;
     pTColumn->bytes = pColumn->bytes;
     pTColumn->offset = pTSchema->flen;
 
+    pTSchema->flen += TYPE_BYTES[pColumn->type];
+    pTSchema->tlen += TYPE_BYTES[pColumn->type];
     if (IS_VAR_DATA_TYPE(pColumn->type)) {
-    } else {
+      pTSchema->tlen = pTSchema->tlen + pColumn->bytes + 5;
     }
 
-    pTSchema->flen += TYPE_BYTES[pColumn->type];
+    pColumn++;
+    pTColumn++;
   }
 
   *ppTSchema = pTSchema;
@@ -93,17 +96,46 @@ int32_t tRowBuilderClear(STSRowBuilder *pRB) {
 }
 
 int32_t tRowBuilderReset(STSRowBuilder *pRB) {
-  // TODO
+  for (int32_t iCol = pRB->pTSchema->numOfCols - 1; iCol >= 0; iCol--) {
+    pRB->pTColumn = &pRB->pTSchema->columns[iCol];
+    pRB->pTColumn->flags &= (~COL_VAL_SET);
+  }
+
   return 0;
 }
 
-int32_t tRowBuilderPut(STSRowBuilder *pRB, int16_t cid, const uint8_t *pData, int32_t nData, int32_t flags) {
-  // TODO
+int32_t tRowBuilderPut(STSRowBuilder *pRB, int16_t cid, const uint8_t *pData, uint32_t nData, int32_t flags) {
+  // find the column to put data
+
+  // put data
+  if (cid == 0) {
+    ASSERT(pData != NULL && nData == sizeof(TSKEY));
+    pRB->row.ts = *(TSKEY *)pData;
+  } else {
+    if (pData == NULL) {
+      // set col val as NULL (todo)
+    } else {
+      if (IS_VAR_DATA_TYPE(pRB->pTColumn->type)) {
+      } else {
+      }
+    }
+  }
   return 0;
 }
 
-int32_t tRowBuilderGet(STSRowBuilder *pRB, const STSRow2 *pRow) {
-  // TODO
+int32_t tRowBuilderGet(STSRowBuilder *pRB, const STSRow2 **ppRow) {
+  STColumn *pTColumn;
+
+  for (int32_t iCol = 0; iCol < pRB->pTSchema->numOfCols; iCol++) {
+    pTColumn = pRB->pTSchema->columns + iCol;
+    if (pTColumn->flags & COL_VAL_SET == 0) {
+      // set the column as None (todo)
+    }
+  }
+
+  // decide which kind of row to use (todo)
+
+  *ppRow = &pRB->row;
   return 0;
 }
 
