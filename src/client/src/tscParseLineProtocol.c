@@ -490,6 +490,7 @@ static int32_t applySchemaAction(TAOS* taos, SSchemaAction* action, SSmlLinesInf
         tscError("SML:0x%"PRIx64" apply schema action. error : %s", info->id, taos_errstr(res));
       }
       taos_free_result(res);
+      info->cost.numOfCreateSTables++;
 
       if (code == TSDB_CODE_MND_TABLE_ALREADY_EXIST) {
         TAOS_RES* res2 = taos_query(taos, "RESET QUERY CACHE");
@@ -679,6 +680,7 @@ static int32_t loadTableSchemaFromDB(TAOS* taos, char* tableName, SSmlSTableSche
 static int32_t modifyDBSchemas(TAOS* taos, SArray* stableSchemas, SSmlLinesInfo* info) {
   int32_t code = 0;
   size_t numStable = taosArrayGetSize(stableSchemas);
+  info->cost.numOfSTables = numStable;
   for (int i = 0; i < numStable; ++i) {
     SSmlSTableSchema* pointSchema = taosArrayGet(stableSchemas, i);
     SSmlSTableSchema  dbSchema;
@@ -1205,9 +1207,11 @@ static int32_t applyDataPoints(TAOS* taos, TAOS_SML_DATA_POINT* points, int32_t 
   SHashObj* cname2points = taosHashInit(128, taosGetDefaultHashFunction(TSDB_DATA_TYPE_BINARY), true, false);
   arrangePointsByChildTableName(points, numPoints, cname2points, stableSchemas, info);
 
+  info->cost.insertRpcTime = taosGetTimestampUs();
   SArray** pCTablePoints = taosHashIterate(cname2points, NULL);
   while (pCTablePoints) {
     SArray* cTablePoints = *pCTablePoints;
+    info->cost.numOfCTables++;
 
     TAOS_SML_DATA_POINT* point = taosArrayGetP(cTablePoints, 0);
     SSmlSTableSchema*    sTableSchema = taosArrayGet(stableSchemas, point->schemaIdx);
@@ -1320,6 +1324,7 @@ int tscSmlInsert(TAOS* taos, TAOS_SML_DATA_POINT* points, int numPoint, SSmlLine
     goto clean_up;
   }
 
+  info->cost.schemaTime = taosGetTimestampUs();
   tscDebug("SML:0x%"PRIx64" modify db schemas", info->id);
   code = modifyDBSchemas(taos, stableSchemas, info);
   if (code != 0) {
@@ -1327,6 +1332,7 @@ int tscSmlInsert(TAOS* taos, TAOS_SML_DATA_POINT* points, int numPoint, SSmlLine
     goto clean_up;
   }
 
+  info->cost.insertBindTime = taosGetTimestampUs();
   tscDebug("SML:0x%"PRIx64" apply data points", info->id);
   code = applyDataPoints(taos, points, numPoint, stableSchemas, info);
   if (code != 0) {
@@ -2781,6 +2787,7 @@ int taos_insert_lines(TAOS* taos, char* lines[], int numLines, SMLProtocolType p
     return TSDB_CODE_TSC_OUT_OF_MEMORY;
   }
 
+  info->cost.parseTime = taosGetTimestampUs();
   tscDebug("SML:0x%"PRIx64" taos_insert_lines begin inserting %d lines, first line: %s", info->id, numLines, lines[0]);
   code = tscParseLines(lines, numLines, lpPoints, NULL, info);
   size_t numPoints = taosArrayGetSize(lpPoints);
@@ -2797,6 +2804,7 @@ int taos_insert_lines(TAOS* taos, char* lines[], int numLines, SMLProtocolType p
   if (affectedRows != NULL) {
     *affectedRows = info->affectedRows;
   }
+  info->cost.endTime = taosGetTimestampUs();
 
 cleanup:
   tscDebug("SML:0x%"PRIx64" taos_insert_lines finish inserting %d lines. code: %d", info->id, numLines, code);
@@ -2806,6 +2814,14 @@ cleanup:
     destroySmlDataPoint(points+i);
   }
 
+  info->cost.code = code;
+  info->cost.lineNum = numLines;
+  tscError("SML:0x%"PRIx64" smlInsertLines result, code:%d,lineNum:%d,stable num:%d,ctable num:%d,create stable num:%d \
+        parse cost:%"PRId64",schema cost:%"PRId64",bind cost:%"PRId64",rpc cost:%"PRId64",total cost:%"PRId64"", info->id, info->cost.code,
+           info->cost.lineNum, info->cost.numOfSTables, info->cost.numOfCTables, info->cost.numOfCreateSTables,
+           info->cost.schemaTime-info->cost.parseTime, info->cost.insertBindTime-info->cost.schemaTime,
+           info->cost.insertRpcTime-info->cost.insertBindTime, info->cost.endTime-info->cost.insertRpcTime,
+           info->cost.endTime-info->cost.parseTime);
   taosArrayDestroy(&lpPoints);
 
   tfree(info);
