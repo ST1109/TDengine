@@ -27,12 +27,15 @@
 extern "C" {
 #endif
 
+typedef struct SSchema       SSchema;
 typedef struct STColumn      STColumn;
 typedef struct STSchema      STSchema;
 typedef struct STSRow2       STSRow2;
 typedef struct STSRowBuilder STSRowBuilder;
 
 // STSchema
+int32_t tSTSchemaCreate(SSchema *pSchema, int32_t nCols, int32_t sver, STSchema **ppTSchema);
+void    tSTSchemaDestroy(STSchema *pTSchema);
 
 // STSRow2
 int32_t tEncodeSTSRow(SEncoder *pEncoder, const STSRow2 *pRow);
@@ -55,12 +58,12 @@ struct STColumn {
 };
 
 struct STSchema {
-  int32_t      numOfCols;  // Number of columns appended
-  schema_ver_t version;    // schema version
-  uint16_t     flen;       // First part length in a STpRow after the header part
-  int32_t      vlen;       // pure value part length, excluded the overhead (bytes only)
-  int32_t      tlen;       // maximum length of a STpRow without the header part
-                           // (sizeof(VarDataOffsetT) + sizeof(VarDataLenT) + (bytes))
+  int32_t numOfCols;  // Number of columns appended
+  int32_t version;    // schema version
+  int32_t flen;       // First part length in a STpRow after the header part
+  int32_t vlen;       // pure value part length, excluded the overhead (bytes only)
+  int32_t tlen;       // maximum length of a STpRow without the header part
+                      // (sizeof(VarDataOffsetT) + sizeof(VarDataLenT) + (bytes))
   STColumn columns[];
 };
 

@@ -43,6 +43,21 @@ inline int32_t tDecodeSTSRow(SDecoder *pDecoder, STSRow2 *pRow) {
   return 0;
 }
 
+int32_t tSTSchemaCreate(SSchema *pSchema, int32_t nCols, int32_t sver, STSchema **ppTSchema) {
+  STSchema *pTSchema = NULL;
+
+  pTSchema = taosMemoryMalloc(sizeof(*pTSchema) + sizeof(STColumn) * nCols);
+  if (pTSchema == NULL) {
+    terrno = TSDB_CODE_OUT_OF_MEMORY;
+    return -1;
+  }
+
+  // TODO
+  return 0;
+}
+
+void tSTSchemaDestroy(STSchema *pTSchema) { taosMemoryFree(pTSchema); }
+
 int32_t tRowBuilderInit(STSRowBuilder *pRB, const SSchema *pSchema, int nCols) {
   // TODO
   return 0;
