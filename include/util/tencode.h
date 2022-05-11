@@ -118,30 +118,6 @@ static int32_t tDecodeCStrTo(SDecoder* pCoder, char* val);
 #define tPut(TYPE, BUF, VAL) ((TYPE*)(BUF))[0] = (VAL)
 #define tGet(TYPE, BUF, VAL) (VAL) = ((TYPE*)(BUF))[0]
 
-#define tRPut16(PDEST, PSRC)                      \
-  ((uint8_t*)(PDEST))[0] = ((uint8_t*)(PSRC))[1]; \
-  ((uint8_t*)(PDEST))[1] = ((uint8_t*)(PSRC))[0];
-
-#define tRPut32(PDEST, PSRC)                      \
-  ((uint8_t*)(PDEST))[0] = ((uint8_t*)(PSRC))[3]; \
-  ((uint8_t*)(PDEST))[1] = ((uint8_t*)(PSRC))[2]; \
-  ((uint8_t*)(PDEST))[2] = ((uint8_t*)(PSRC))[1]; \
-  ((uint8_t*)(PDEST))[3] = ((uint8_t*)(PSRC))[0];
-
-#define tRPut64(PDEST, PSRC)                      \
-  ((uint8_t*)(PDEST))[0] = ((uint8_t*)(PSRC))[7]; \
-  ((uint8_t*)(PDEST))[1] = ((uint8_t*)(PSRC))[6]; \
-  ((uint8_t*)(PDEST))[2] = ((uint8_t*)(PSRC))[5]; \
-  ((uint8_t*)(PDEST))[3] = ((uint8_t*)(PSRC))[4]; \
-  ((uint8_t*)(PDEST))[4] = ((uint8_t*)(PSRC))[3]; \
-  ((uint8_t*)(PDEST))[5] = ((uint8_t*)(PSRC))[2]; \
-  ((uint8_t*)(PDEST))[6] = ((uint8_t*)(PSRC))[1]; \
-  ((uint8_t*)(PDEST))[7] = ((uint8_t*)(PSRC))[0];
-
-#define tRGet16 tRPut16
-#define tRGet32 tRPut32
-#define tRGet64 tRPut64
-
 #define TD_CODER_POS(CODER)                            ((CODER)->pos)
 #define TD_CODER_CURRENT(CODER)                        ((CODER)->data + (CODER)->pos)
 #define TD_CODER_MOVE_POS(CODER, MOVE)                 ((CODER)->pos += (MOVE))
@@ -532,6 +508,32 @@ static FORCE_INLINE int32_t tGetBinary(uint8_t* p, const uint8_t** ppData, uint3
   // TODO
   return 0;
 }
+
+#if 0
+#define tRPut16(PDEST, PSRC)                      \
+  ((uint8_t*)(PDEST))[0] = ((uint8_t*)(PSRC))[1]; \
+  ((uint8_t*)(PDEST))[1] = ((uint8_t*)(PSRC))[0];
+
+#define tRPut32(PDEST, PSRC)                      \
+  ((uint8_t*)(PDEST))[0] = ((uint8_t*)(PSRC))[3]; \
+  ((uint8_t*)(PDEST))[1] = ((uint8_t*)(PSRC))[2]; \
+  ((uint8_t*)(PDEST))[2] = ((uint8_t*)(PSRC))[1]; \
+  ((uint8_t*)(PDEST))[3] = ((uint8_t*)(PSRC))[0];
+
+#define tRPut64(PDEST, PSRC)                      \
+  ((uint8_t*)(PDEST))[0] = ((uint8_t*)(PSRC))[7]; \
+  ((uint8_t*)(PDEST))[1] = ((uint8_t*)(PSRC))[6]; \
+  ((uint8_t*)(PDEST))[2] = ((uint8_t*)(PSRC))[5]; \
+  ((uint8_t*)(PDEST))[3] = ((uint8_t*)(PSRC))[4]; \
+  ((uint8_t*)(PDEST))[4] = ((uint8_t*)(PSRC))[3]; \
+  ((uint8_t*)(PDEST))[5] = ((uint8_t*)(PSRC))[2]; \
+  ((uint8_t*)(PDEST))[6] = ((uint8_t*)(PSRC))[1]; \
+  ((uint8_t*)(PDEST))[7] = ((uint8_t*)(PSRC))[0];
+
+#define tRGet16 tRPut16
+#define tRGet32 tRPut32
+#define tRGet64 tRPut64
+#endif
 
 #ifdef __cplusplus
 }
