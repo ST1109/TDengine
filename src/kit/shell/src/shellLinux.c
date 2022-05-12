@@ -531,14 +531,14 @@ void showOnScreen(Command *cmd) {
     /* assert(size >= 0); */
     int width = wcwidth(wc);
     if (remain_column > width) {
-      printf("%lc", wc);
+      fprintf(stdout, "%lc", wc);
       remain_column -= width;
     } else {
       if (remain_column == width) {
-        printf("%lc\n\r", wc);
+        fprintf(stdout, "%lc\n\r", wc);
         remain_column = w.ws_col;
       } else {
-        printf("\n\r%lc", wc);
+        fprintf(stdout, "\n\r%lc", wc);
         remain_column = w.ws_col - width;
       }
     }

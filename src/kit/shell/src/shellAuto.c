@@ -195,22 +195,22 @@ int32_t compareCommand(SWords * cmd1, SWords * cmd2) {
 }
 
 // match command
-SWords * matchCommand(SWords * command) {
+SWords * matchCommand(SWords * input, bool checkLast) {
   int32_t count = SHELL_COMMAND_COUNT();
   for (int32_t i = 0; i < count; i ++) {
-    SWords * cmd1 = shellCommands + i;
-    if (lastMatchIndex != -1 && i <= lastMatchIndex) {
+    SWords * shellCommand = shellCommands + i;
+    if (checkLast && lastMatchIndex != -1 && i <= lastMatchIndex) {
       // new match must greate than lastMatchIndex
       continue;
     }
 
     // command is large
-    if(command->count > cmd1->count ) {
+    if(input->count > shellCommand->count ) {
       continue;
     }
 
     // compare
-    int32_t index = compareCommand(cmd1, command);
+    int32_t index = compareCommand(shellCommand, input);
     if (index != -1) {
       if (firstMatchIndex == -1)
         firstMatchIndex = i;
@@ -235,7 +235,7 @@ void printScreen(TAOS * con, Command * cmd, SWords * match) {
   const char * str = NULL;
   int strLen = 0; 
 
-  if (firstMatchIndex == curMatchIndex) {
+  if (firstMatchIndex == curMatchIndex && lastMatchIndex == -1) {
     // first press tab
     SWord * word = MATCH_WORD(match);
     str = word->word + match->matchLen;
@@ -251,7 +251,8 @@ void printScreen(TAOS * con, Command * cmd, SWords * match) {
     // delete last match word
     int size = 0;
     int width = 0;
-    while(--count >= 0) {
+    clearScreen(cmd->endOffset + prompt_size, cmd->screenOffset + prompt_size);
+    while(--count >= 0 && cmd->cursorOffset > 0) {
       getPrevCharSize(cmd->command, cmd->cursorOffset, &size, &width);
       memmove(cmd->command + cmd->cursorOffset - size, cmd->command + cmd->cursorOffset,
               cmd->commandSize - cmd->cursorOffset);
@@ -261,7 +262,7 @@ void printScreen(TAOS * con, Command * cmd, SWords * match) {
       cmd->endOffset -= width;
     }
 
-    SWord * word = MATCH_WORD(match);
+   SWord * word = MATCH_WORD(match);
     str = word->word;
     strLen = word->len;
     // set current to last
@@ -280,54 +281,61 @@ void showHelp(TAOS * con, Command * cmd) {
 // main key press tab
 void firstMatchCommand(TAOS * con, Command * cmd) {
   // parse command
-  SWords* command = (SWords *)malloc(sizeof(SWords));
-  memset(command, 0, sizeof(SWords));
-  command->source = cmd->command;
-  command->source_len = cmd->commandSize;
-  parseCommand(command);
+  SWords* input = (SWords *)malloc(sizeof(SWords));
+  memset(input, 0, sizeof(SWords));
+  input->source = cmd->command;
+  input->source_len = cmd->commandSize;
+  parseCommand(input);
 
   // if have many , default match first, if press tab again , switch to next
-  SWords * match = matchCommand(command);
+  curMatchIndex  = -1;
+  lastMatchIndex = -1;
+  SWords * match = matchCommand(input, true);
   if (match == NULL) {
     // not match , nothing to do
-    freeCommand(command);
+    freeCommand(input);
     return ;
   }
 
   // print to screen
   printScreen(con, cmd, match);
-  freeCommand(command);
+  freeCommand(input);
 }
 
 // next Match Command
 void nextMatchCommand(TAOS * con, Command * cmd, SWords * firstMatch) {
-  SWords* command = (SWords *)malloc(sizeof(SWords));
-  memset(command, 0, sizeof(SWords));
+  SWords* input = (SWords *)malloc(sizeof(SWords));
+  memset(input, 0, sizeof(SWords));
 
   // set source and source_len
-  command->source = firstMatch->source;
+  input->source = firstMatch->source;
   SWord * word = firstMatch->head;
   if (word == NULL)
     return ;
   for (int i = 0; i < firstMatch->matchIndex && word; i++) {
-    command->source_len += word->len + 1; // 1 is blank
+    input->source_len += word->len + 1; // 1 is blank
     word = word->next;
   }
-  command->source_len += firstMatch->matchLen;
+  input->source_len += firstMatch->matchLen;
   
-  parseCommand(command);
+  parseCommand(input);
 
   // if have many , default match first, if press tab again , switch to next
-  SWords * match = matchCommand(command);
+  SWords * match = matchCommand(input, true);
   if (match == NULL) {
-    // not match , nothing to do
-    freeCommand(command);
-    return ;
+    // if not match , reset all index
+    firstMatchIndex = -1;
+    curMatchIndex   = -1;
+    match = matchCommand(input, false);
+    if(match == NULL) {
+      freeCommand(input);
+      return ;
+    }
   }
 
   // print to screen
   printScreen(con, cmd, match);
-  freeCommand(command);
+  freeCommand(input);
 }
 
 
