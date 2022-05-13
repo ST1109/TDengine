@@ -180,6 +180,7 @@ static bool addHandleToAcceptloop(void* arg);
       srvMsg->msg = tmsg;                                                   \
       srvMsg->type = Release;                                               \
       srvMsg->pConn = conn;                                                 \
+      reallocConnRefHandle(conn);                                           \
       if (!transQueuePush(&conn->srvMsgs, srvMsg)) {                        \
         return;                                                             \
       }                                                                     \
