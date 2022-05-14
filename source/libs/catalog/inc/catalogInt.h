@@ -326,15 +326,17 @@ typedef struct SCtgAction {
 #define CTG_API_LEAVE(c) do { int32_t __code = c; CTG_UNLOCK(CTG_READ, &gCtgMgmt.lock); CTG_API_DEBUG("CTG API leave %s", __FUNCTION__); CTG_RET(__code); } while (0)
 #define CTG_API_ENTER() do { CTG_API_DEBUG("CTG API enter %s", __FUNCTION__); CTG_LOCK(CTG_READ, &gCtgMgmt.lock); if (atomic_load_8((int8_t*)&gCtgMgmt.exit)) { CTG_API_LEAVE(TSDB_CODE_CTG_OUT_OF_SERVICE); }  } while (0)
 
+#define CTG_PARAMS SCatalog* pCtg, void *pTrans, const SEpSet* pMgmtEps
+#define CTG_PARAMS_LIST() pCtg, pTrans, pMgmtEps
 
 void ctgdShowTableMeta(SCatalog* pCtg, const char *tbName, STableMeta* p);
 void ctgdShowClusterCache(SCatalog* pCtg);
 int32_t ctgdShowCacheInfo(void);
 int32_t ctgActUpdateVg(SCtgMetaAction *action);
-int32_t ctgActUpdateTbl(SCtgMetaAction *action);
+int32_t ctgActUpdateTb(SCtgMetaAction *action);
 int32_t ctgActRemoveDB(SCtgMetaAction *action);
 int32_t ctgActRemoveStb(SCtgMetaAction *action);
-int32_t ctgActRemoveTbl(SCtgMetaAction *action);
+int32_t ctgActRemoveTb(SCtgMetaAction *action);
 int32_t ctgActUpdateUser(SCtgMetaAction *action);
 
 

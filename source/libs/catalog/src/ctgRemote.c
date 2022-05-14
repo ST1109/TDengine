@@ -19,7 +19,7 @@
 #include "catalogInt.h"
 #include "systable.h"
 
-int32_t ctgGetQnodeListFromMnode(SCatalog* pCtg, void *pRpc, const SEpSet* pMgmtEps, SArray *out) {
+int32_t ctgGetQnodeListFromMnode(CTG_PARAMS, SArray *out, bool async) {
   char *msg = NULL;
   int32_t msgLen = 0;
 
@@ -37,9 +37,13 @@ int32_t ctgGetQnodeListFromMnode(SCatalog* pCtg, void *pRpc, const SEpSet* pMgmt
       .contLen = msgLen,
   };
 
+  if (async) {
+    CTG_RET(ctgAsyncSendMsg());
+  }
+
   SRpcMsg rpcRsp = {0};
 
-  rpcSendRecv(pRpc, (SEpSet*)pMgmtEps, &rpcMsg, &rpcRsp);
+  rpcSendRecv(pTrans, (SEpSet*)pMgmtEps, &rpcMsg, &rpcRsp);
   if (TSDB_CODE_SUCCESS != rpcRsp.code) {
     ctgError("error rsp for qnode list, error:%s", tstrerror(rpcRsp.code));
     CTG_ERR_RET(rpcRsp.code);
@@ -57,7 +61,7 @@ int32_t ctgGetQnodeListFromMnode(SCatalog* pCtg, void *pRpc, const SEpSet* pMgmt
 }
 
 
-int32_t ctgGetDBVgInfoFromMnode(SCatalog* pCtg, void *pRpc, const SEpSet* pMgmtEps, SBuildUseDBInput *input, SUseDbOutput *out) {
+int32_t ctgGetDBVgInfoFromMnode(CTG_PARAMS, SBuildUseDBInput *input, SUseDbOutput *out, bool async) {
   char *msg = NULL;
   int32_t msgLen = 0;
 
@@ -75,9 +79,13 @@ int32_t ctgGetDBVgInfoFromMnode(SCatalog* pCtg, void *pRpc, const SEpSet* pMgmtE
       .contLen = msgLen,
   };
 
+  if (async) {
+    CTG_RET(ctgAsyncSendMsg());
+  }
+
   SRpcMsg rpcRsp = {0};
 
-  rpcSendRecv(pRpc, (SEpSet*)pMgmtEps, &rpcMsg, &rpcRsp);
+  rpcSendRecv(pTrans, (SEpSet*)pMgmtEps, &rpcMsg, &rpcRsp);
   if (TSDB_CODE_SUCCESS != rpcRsp.code) {
     ctgError("error rsp for use db, error:%s, db:%s", tstrerror(rpcRsp.code), input->db);
     CTG_ERR_RET(rpcRsp.code);
@@ -94,7 +102,7 @@ int32_t ctgGetDBVgInfoFromMnode(SCatalog* pCtg, void *pRpc, const SEpSet* pMgmtE
   return TSDB_CODE_SUCCESS;
 }
 
-int32_t ctgGetDBCfgFromMnode(SCatalog* pCtg, void *pRpc, const SEpSet* pMgmtEps, const char *dbFName, SDbCfgInfo *out) {
+int32_t ctgGetDBCfgFromMnode(CTG_PARAMS, const char *dbFName, SDbCfgInfo *out, bool async) {
   char *msg = NULL;
   int32_t msgLen = 0;
 
@@ -112,9 +120,13 @@ int32_t ctgGetDBCfgFromMnode(SCatalog* pCtg, void *pRpc, const SEpSet* pMgmtEps,
       .contLen = msgLen,
   };
 
+  if (async) {
+    CTG_RET(ctgAsyncSendMsg());
+  }
+
   SRpcMsg rpcRsp = {0};
 
-  rpcSendRecv(pRpc, (SEpSet*)pMgmtEps, &rpcMsg, &rpcRsp);
+  rpcSendRecv(pTrans, (SEpSet*)pMgmtEps, &rpcMsg, &rpcRsp);
   if (TSDB_CODE_SUCCESS != rpcRsp.code) {
     ctgError("error rsp for get db cfg, error:%s, db:%s", tstrerror(rpcRsp.code), dbFName);
     CTG_ERR_RET(rpcRsp.code);
@@ -131,7 +143,7 @@ int32_t ctgGetDBCfgFromMnode(SCatalog* pCtg, void *pRpc, const SEpSet* pMgmtEps,
   return TSDB_CODE_SUCCESS;
 }
 
-int32_t ctgGetIndexInfoFromMnode(SCatalog* pCtg, void *pRpc, const SEpSet* pMgmtEps, const char *indexName, SIndexInfo *out) {
+int32_t ctgGetIndexInfoFromMnode(CTG_PARAMS, const char *indexName, SIndexInfo *out, bool async) {
   char *msg = NULL;
   int32_t msgLen = 0;
 
@@ -149,9 +161,13 @@ int32_t ctgGetIndexInfoFromMnode(SCatalog* pCtg, void *pRpc, const SEpSet* pMgmt
       .contLen = msgLen,
   };
 
+  if (async) {
+    CTG_RET(ctgAsyncSendMsg());
+  }
+
   SRpcMsg rpcRsp = {0};
 
-  rpcSendRecv(pRpc, (SEpSet*)pMgmtEps, &rpcMsg, &rpcRsp);
+  rpcSendRecv(pTrans, (SEpSet*)pMgmtEps, &rpcMsg, &rpcRsp);
   if (TSDB_CODE_SUCCESS != rpcRsp.code) {
     ctgError("error rsp for get index, error:%s, indexName:%s", tstrerror(rpcRsp.code), indexName);
     CTG_ERR_RET(rpcRsp.code);
@@ -168,7 +184,7 @@ int32_t ctgGetIndexInfoFromMnode(SCatalog* pCtg, void *pRpc, const SEpSet* pMgmt
   return TSDB_CODE_SUCCESS;
 }
 
-int32_t ctgGetUdfInfoFromMnode(SCatalog* pCtg, void *pRpc, const SEpSet* pMgmtEps, const char *funcName, SFuncInfo **out) {
+int32_t ctgGetUdfInfoFromMnode(CTG_PARAMS, const char *funcName, SFuncInfo **out, bool async) {
   char *msg = NULL;
   int32_t msgLen = 0;
 
@@ -186,9 +202,13 @@ int32_t ctgGetUdfInfoFromMnode(SCatalog* pCtg, void *pRpc, const SEpSet* pMgmtEp
       .contLen = msgLen,
   };
 
+  if (async) {
+    CTG_RET(ctgAsyncSendMsg());
+  }
+
   SRpcMsg rpcRsp = {0};
 
-  rpcSendRecv(pRpc, (SEpSet*)pMgmtEps, &rpcMsg, &rpcRsp);
+  rpcSendRecv(pTrans, (SEpSet*)pMgmtEps, &rpcMsg, &rpcRsp);
   if (TSDB_CODE_SUCCESS != rpcRsp.code) {
     if (TSDB_CODE_MND_FUNC_NOT_EXIST == rpcRsp.code) {
       ctgDebug("funcName %s not exist in mnode", funcName);
@@ -211,7 +231,7 @@ int32_t ctgGetUdfInfoFromMnode(SCatalog* pCtg, void *pRpc, const SEpSet* pMgmtEp
   return TSDB_CODE_SUCCESS;
 }
 
-int32_t ctgGetUserDbAuthFromMnode(SCatalog* pCtg, void *pRpc, const SEpSet* pMgmtEps, const char *user, SGetUserAuthRsp *authRsp) {
+int32_t ctgGetUserDbAuthFromMnode(CTG_PARAMS, const char *user, SGetUserAuthRsp *authRsp, bool async) {
   char *msg = NULL;
   int32_t msgLen = 0;
 
@@ -229,9 +249,13 @@ int32_t ctgGetUserDbAuthFromMnode(SCatalog* pCtg, void *pRpc, const SEpSet* pMgm
       .contLen = msgLen,
   };
 
+  if (async) {
+    CTG_RET(ctgAsyncSendMsg());
+  }
+
   SRpcMsg rpcRsp = {0};
 
-  rpcSendRecv(pRpc, (SEpSet*)pMgmtEps, &rpcMsg, &rpcRsp);
+  rpcSendRecv(pTrans, (SEpSet*)pMgmtEps, &rpcMsg, &rpcRsp);
   if (TSDB_CODE_SUCCESS != rpcRsp.code) {
     ctgError("error rsp for get user auth, error:%s, user:%s", tstrerror(rpcRsp.code), user);
     CTG_ERR_RET(rpcRsp.code);
@@ -249,7 +273,7 @@ int32_t ctgGetUserDbAuthFromMnode(SCatalog* pCtg, void *pRpc, const SEpSet* pMgm
 }
 
 
-int32_t ctgGetTableMetaFromMnodeImpl(SCatalog* pCtg, void *pTrans, const SEpSet* pMgmtEps, char *dbFName, char* tbName, STableMetaOutput* output) {
+int32_t ctgGetTbMetaFromMnodeImpl(CTG_PARAMS, char *dbFName, char* tbName, STableMetaOutput* output, bool async) {
   SBuildTableMetaInput bInput = {.vgId = 0, .dbFName = dbFName, .tbName = tbName};
   char *msg = NULL;
   SEpSet *pVnodeEpSet = NULL;
@@ -268,6 +292,10 @@ int32_t ctgGetTableMetaFromMnodeImpl(SCatalog* pCtg, void *pTrans, const SEpSet*
       .pCont   = msg,
       .contLen = msgLen,
   };
+
+  if (async) {
+    CTG_RET(ctgAsyncSendMsg());
+  }
 
   SRpcMsg rpcRsp = {0};
 
@@ -295,18 +323,14 @@ int32_t ctgGetTableMetaFromMnodeImpl(SCatalog* pCtg, void *pTrans, const SEpSet*
   return TSDB_CODE_SUCCESS;
 }
 
-int32_t ctgGetTableMetaFromMnode(SCatalog* pCtg, void *pTrans, const SEpSet* pMgmtEps, const SName* pTableName, STableMetaOutput* output) {
+int32_t ctgGetTbMetaFromMnode(CTG_PARAMS, const SName* pTableName, STableMetaOutput* output, bool async) {
   char dbFName[TSDB_DB_FNAME_LEN];
   tNameGetFullDbName(pTableName, dbFName);
 
-  return ctgGetTableMetaFromMnodeImpl(pCtg, pTrans, pMgmtEps, dbFName, (char *)pTableName->tname, output);
+  return ctgGetTbMetaFromMnodeImpl(CTG_PARAMS_LIST(), dbFName, (char *)pTableName->tname, output, async);
 }
 
-int32_t ctgGetTableMetaFromVnodeImpl(SCatalog* pCtg, void *pTrans, const SEpSet* pMgmtEps, const SName* pTableName, SVgroupInfo *vgroupInfo, STableMetaOutput* output) {
-  if (NULL == pCtg || NULL == pTrans || NULL == pMgmtEps || NULL == pTableName || NULL == vgroupInfo || NULL == output) {
-    CTG_ERR_RET(TSDB_CODE_CTG_INVALID_INPUT);
-  }
-
+int32_t ctgGetTbMetaFromVnode(CTG_PARAMS, const SName* pTableName, SVgroupInfo *vgroupInfo, STableMetaOutput* output, bool async) {
   char dbFName[TSDB_DB_FNAME_LEN];
   tNameGetFullDbName(pTableName, dbFName);
 
@@ -327,6 +351,10 @@ int32_t ctgGetTableMetaFromVnodeImpl(SCatalog* pCtg, void *pTrans, const SEpSet*
       .pCont   = msg,
       .contLen = msgLen,
   };
+
+  if (async) {
+    CTG_RET(ctgAsyncSendMsg());
+  }
 
   SRpcMsg rpcRsp = {0};
   rpcSendRecv(pTrans, &vgroupInfo->epSet, &rpcMsg, &rpcRsp);
@@ -352,31 +380,8 @@ int32_t ctgGetTableMetaFromVnodeImpl(SCatalog* pCtg, void *pTrans, const SEpSet*
   return TSDB_CODE_SUCCESS;
 }
 
-int32_t ctgGetTableMetaFromVnode(SCatalog* pCtg, void *pTrans, const SEpSet* pMgmtEps, const SName* pTableName, SVgroupInfo *vgroupInfo, STableMetaOutput* output) {
-  int32_t code = 0;
-  int32_t retryNum = 0;
-  
-  while (retryNum < CTG_DEFAULT_MAX_RETRY_TIMES) {
-    code = ctgGetTableMetaFromVnodeImpl(pCtg, pTrans, pMgmtEps, pTableName, vgroupInfo, output);
-    if (code) {
-      if (TSDB_CODE_VND_HASH_MISMATCH == code) {
-        char dbFName[TSDB_DB_FNAME_LEN];
-        tNameGetFullDbName(pTableName, dbFName);
-        
-        code = catalogRefreshDBVgInfo(pCtg, pTrans, pMgmtEps, dbFName);
-        if (code != TSDB_CODE_SUCCESS) {
-          break;
-        }
 
-        ++retryNum;
-        continue;
-      }
-    }
+int32_t ctg
 
-    break;
-  }
-
-  CTG_RET(code);
-}
 
 

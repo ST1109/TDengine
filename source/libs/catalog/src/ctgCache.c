@@ -19,36 +19,37 @@
 #include "catalogInt.h"
 #include "systable.h"
 
-SCtgAction gCtgAction[CTG_ACT_MAX] = {{
-                            CTG_ACT_UPDATE_VG,
-                            "update vgInfo",
-                            ctgActUpdateVg
-                          },
-                          {
-                            CTG_ACT_UPDATE_TBL,
-                            "update tbMeta",
-                            ctgActUpdateTbl
-                          },
-                          {
-                            CTG_ACT_REMOVE_DB,
-                            "remove DB",
-                            ctgActRemoveDB
-                          },
-                          {
-                            CTG_ACT_REMOVE_STB,
-                            "remove stbMeta",
-                            ctgActRemoveStb
-                          },
-                          {
-                            CTG_ACT_REMOVE_TBL,
-                            "remove tbMeta",
-                            ctgActRemoveTbl
-                          },
-                          {
-                            CTG_ACT_UPDATE_USER,
-                            "update user",
-                            ctgActUpdateUser
-                          }
+SCtgAction gCtgAction[CTG_ACT_MAX] = {
+  {
+    CTG_ACT_UPDATE_VG,
+    "update vgInfo",
+    ctgActUpdateVg
+  },
+  {
+    CTG_ACT_UPDATE_TBL,
+    "update tbMeta",
+    ctgActUpdateTb
+  },
+  {
+    CTG_ACT_REMOVE_DB,
+    "remove DB",
+    ctgActRemoveDB
+  },
+  {
+    CTG_ACT_REMOVE_STB,
+    "remove stbMeta",
+    ctgActRemoveStb
+  },
+  {
+    CTG_ACT_REMOVE_TBL,
+    "remove tbMeta",
+    ctgActRemoveTb
+  },
+  {
+    CTG_ACT_UPDATE_USER,
+    "update user",
+    ctgActUpdateUser
+  }
 };
 
 
@@ -191,7 +192,7 @@ _return:
   return TSDB_CODE_SUCCESS;
 }
 
-int32_t ctgIsTableMetaExistInCache(SCatalog* pCtg, char *dbFName, char* tbName, int32_t *exist) {
+int32_t ctgTbMetaExistInCache(SCatalog* pCtg, char *dbFName, char* tbName, int32_t *exist) {
   if (NULL == pCtg->dbCache) {
     *exist = 0;
     ctgWarn("empty db cache, dbFName:%s, tbName:%s", dbFName, tbName);
@@ -228,7 +229,7 @@ int32_t ctgIsTableMetaExistInCache(SCatalog* pCtg, char *dbFName, char* tbName, 
 }
 
 
-int32_t ctgGetTableMetaFromCache(SCatalog* pCtg, const SName* pTableName, STableMeta** pTableMeta, bool *inCache, int32_t flag, uint64_t *dbId) {
+int32_t ctgGetTbMetaFromCache(SCatalog* pCtg, const SName* pTableName, STableMeta** pTableMeta, bool *inCache, int32_t flag, uint64_t *dbId) {
   if (NULL == pCtg->dbCache) {
     ctgDebug("empty tbmeta cache, tbName:%s", pTableName->tname);
     goto _return;
@@ -326,7 +327,7 @@ _return:
   return TSDB_CODE_SUCCESS;
 }
 
-int32_t ctgGetTableTypeFromCache(SCatalog* pCtg, const char* dbFName, const char *tableName, int32_t *tbType) {
+int32_t ctgGetTbTypeFromCache(SCatalog* pCtg, const char* dbFName, const char *tableName, int32_t *tbType) {
   if (NULL == pCtg->dbCache) {
     ctgWarn("empty db cache, dbFName:%s, tbName:%s", dbFName, tableName);  
     return TSDB_CODE_SUCCESS;
@@ -475,7 +476,7 @@ int32_t ctgPushAction(SCatalog* pCtg, SCtgMetaAction *action) {
 }
 
 
-int32_t ctgPushRmDBMsgInQueue(SCatalog* pCtg, const char *dbFName, int64_t dbId) {
+int32_t ctgPutRmDBToQueue(SCatalog* pCtg, const char *dbFName, int64_t dbId) {
   int32_t code = 0;
   SCtgMetaAction action= {.act = CTG_ACT_REMOVE_DB};
   SCtgRemoveDBMsg *msg = taosMemoryMalloc(sizeof(SCtgRemoveDBMsg));
@@ -506,7 +507,7 @@ _return:
 }
 
 
-int32_t ctgPushRmStbMsgInQueue(SCatalog* pCtg, const char *dbFName, int64_t dbId, const char *stbName, uint64_t suid, bool syncReq) {
+int32_t ctgPutRmStbToQueue(SCatalog* pCtg, const char *dbFName, int64_t dbId, const char *stbName, uint64_t suid, bool syncReq) {
   int32_t code = 0;
   SCtgMetaAction action= {.act = CTG_ACT_REMOVE_STB, .syncReq = syncReq};
   SCtgRemoveStbMsg *msg = taosMemoryMalloc(sizeof(SCtgRemoveStbMsg));
@@ -535,7 +536,7 @@ _return:
 
 
 
-int32_t ctgPushRmTblMsgInQueue(SCatalog* pCtg, const char *dbFName, int64_t dbId, const char *tbName, bool syncReq) {
+int32_t ctgPutRmTbToQueue(SCatalog* pCtg, const char *dbFName, int64_t dbId, const char *tbName, bool syncReq) {
   int32_t code = 0;
   SCtgMetaAction action= {.act = CTG_ACT_REMOVE_TBL, .syncReq = syncReq};
   SCtgRemoveTblMsg *msg = taosMemoryMalloc(sizeof(SCtgRemoveTblMsg));
@@ -561,7 +562,7 @@ _return:
   CTG_RET(code);
 }
 
-int32_t ctgPushUpdateVgMsgInQueue(SCatalog* pCtg, const char *dbFName, int64_t dbId, SDBVgInfo* dbInfo, bool syncReq) {
+int32_t ctgPutUpdateVgToQueue(SCatalog* pCtg, const char *dbFName, int64_t dbId, SDBVgInfo* dbInfo, bool syncReq) {
   int32_t code = 0;
   SCtgMetaAction action= {.act = CTG_ACT_UPDATE_VG, .syncReq = syncReq};
   SCtgUpdateVgMsg *msg = taosMemoryMalloc(sizeof(SCtgUpdateVgMsg));
@@ -594,7 +595,7 @@ _return:
   CTG_RET(code);
 }
 
-int32_t ctgPushUpdateTblMsgInQueue(SCatalog* pCtg, STableMetaOutput *output, bool syncReq) {
+int32_t ctgPutUpdateTbToQueue(SCatalog* pCtg, STableMetaOutput *output, bool syncReq) {
   int32_t code = 0;
   SCtgMetaAction action= {.act = CTG_ACT_UPDATE_TBL, .syncReq = syncReq};
   SCtgUpdateTblMsg *msg = taosMemoryMalloc(sizeof(SCtgUpdateTblMsg));
@@ -624,7 +625,7 @@ _return:
   CTG_RET(code);
 }
 
-int32_t ctgPushUpdateUserMsgInQueue(SCatalog* pCtg, SGetUserAuthRsp *pAuth, bool syncReq) {
+int32_t ctgPutUpdateUserToQueue(SCatalog* pCtg, SGetUserAuthRsp *pAuth, bool syncReq) {
   int32_t code = 0;
   SCtgMetaAction action= {.act = CTG_ACT_UPDATE_USER, .syncReq = syncReq};
   SCtgUpdateUserMsg *msg = taosMemoryMalloc(sizeof(SCtgUpdateUserMsg));
@@ -1046,7 +1047,7 @@ int32_t ctgUpdateDBVgInfo(SCatalog* pCtg, const char* dbFName, uint64_t dbId, SD
 }
 
 
-int32_t ctgUpdateTblMeta(SCatalog *pCtg, SCtgDBCache *dbCache, char *dbFName, uint64_t dbId, char *tbName, STableMeta *meta, int32_t metaSize) {
+int32_t ctgUpdateTbMeta(SCatalog *pCtg, SCtgDBCache *dbCache, char *dbFName, uint64_t dbId, char *tbName, STableMeta *meta, int32_t metaSize) {
   SCtgTbMetaCache *tbCache = &dbCache->tbCache;
 
   CTG_LOCK(CTG_READ, &tbCache->metaLock);
@@ -1178,7 +1179,7 @@ _return:
 }
 
 
-int32_t ctgActUpdateTbl(SCtgMetaAction *action) {
+int32_t ctgActUpdateTb(SCtgMetaAction *action) {
   int32_t code = 0;
   SCtgUpdateTblMsg *msg = action->data;
   SCatalog* pCtg = msg->pCtg;
@@ -1204,11 +1205,11 @@ int32_t ctgActUpdateTbl(SCtgMetaAction *action) {
   if (CTG_IS_META_TABLE(output->metaType) || CTG_IS_META_BOTH(output->metaType)) {
     int32_t metaSize = CTG_META_SIZE(output->tbMeta);
     
-    CTG_ERR_JRET(ctgUpdateTblMeta(pCtg, dbCache, output->dbFName, output->dbId, output->tbName, output->tbMeta, metaSize));
+    CTG_ERR_JRET(ctgUpdateTbMeta(pCtg, dbCache, output->dbFName, output->dbId, output->tbName, output->tbMeta, metaSize));
   }
 
   if (CTG_IS_META_CTABLE(output->metaType) || CTG_IS_META_BOTH(output->metaType)) {
-    CTG_ERR_JRET(ctgUpdateTblMeta(pCtg, dbCache, output->dbFName, output->dbId, output->ctbName, (STableMeta *)&output->ctbMeta, sizeof(output->ctbMeta)));
+    CTG_ERR_JRET(ctgUpdateTbMeta(pCtg, dbCache, output->dbFName, output->dbId, output->ctbName, (STableMeta *)&output->ctbMeta, sizeof(output->ctbMeta)));
   }
 
 _return:
@@ -1270,7 +1271,7 @@ _return:
   CTG_RET(code);
 }
 
-int32_t ctgActRemoveTbl(SCtgMetaAction *action) {
+int32_t ctgActRemoveTb(SCtgMetaAction *action) {
   int32_t code = 0;
   SCtgRemoveTblMsg *msg = action->data;
   SCatalog* pCtg = msg->pCtg;

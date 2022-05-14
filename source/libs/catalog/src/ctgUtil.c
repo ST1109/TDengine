@@ -36,7 +36,7 @@ void ctgFreeMetaRent(SCtgRentMgmt *mgmt) {
 }
 
 
-void ctgFreeTableMetaCache(SCtgTbMetaCache *cache) {
+void ctgFreeTbMetaCache(SCtgTbMetaCache *cache) {
   CTG_LOCK(CTG_WRITE, &cache->stbLock);
   if (cache->stbCache) {
     int32_t stblNum = taosHashGetSize(cache->stbCache);  
@@ -78,7 +78,7 @@ void ctgFreeDbCache(SCtgDBCache *dbCache) {
   ctgFreeVgInfo (dbCache->vgInfo);
   CTG_UNLOCK(CTG_WRITE, &dbCache->vgLock);
 
-  ctgFreeTableMetaCache(&dbCache->tbCache);
+  ctgFreeTbMetaCache(&dbCache->tbCache);
 }
 
 
@@ -107,10 +107,6 @@ void ctgFreeHandle(SCatalog* pCtg) {
   
   taosMemoryFree(pCtg);
 }
-
-
-
-
 
 
 int32_t ctgGetHashFunction(int8_t hashMethod, tableNameHashFp *fp) {
