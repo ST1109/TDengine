@@ -40,7 +40,7 @@
 
 namespace {
 
-extern "C" int32_t ctgGetTbMetaFromCache(struct SCatalog *pCatalog, const SName *pTableName, STableMeta **pTableMeta,
+extern "C" int32_t ctgReadTbMetaFromCache(struct SCatalog *pCatalog, const SName *pTableName, STableMeta **pTableMeta,
                                             bool *inCache, int32_t flag, uint64_t *dbId);
 extern "C" int32_t ctgdGetClusterCacheNum(struct SCatalog* pCatalog, int32_t type);
 extern "C" int32_t ctgActUpdateTb(SCtgMetaAction *action);
@@ -860,7 +860,7 @@ void *ctgTestGetCtableMetaThread(void *param) {
   strcpy(cn.tname, ctgTestCTablename);
 
   while (!ctgTestStop) {
-    code = ctgGetTbMetaFromCache(pCtg, &cn, &tbMeta, &inCache, 0, NULL);
+    code = ctgReadTbMetaFromCache(pCtg, &cn, &tbMeta, &inCache, 0, NULL);
     if (code || !inCache) {
       assert(0);
     }

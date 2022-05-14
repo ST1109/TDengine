@@ -19,7 +19,7 @@
 #include "catalogInt.h"
 #include "systable.h"
 
-int32_t ctgGetQnodeListFromMnode(CTG_PARAMS, SArray *out, bool async) {
+int32_t ctgGetQnodeListFromMnode(CTG_PARAMS, SArray *out, SCtgTask* pTask) {
   char *msg = NULL;
   int32_t msgLen = 0;
 
@@ -30,16 +30,16 @@ int32_t ctgGetQnodeListFromMnode(CTG_PARAMS, SArray *out, bool async) {
     ctgError("Build qnode list msg failed, error:%s", tstrerror(code));
     CTG_ERR_RET(code);
   }
+
+  if (pTask) {
+    CTG_RET(ctgAsyncSendMsg(CTG_PARAMS_LIST(), pTask, TDMT_MND_QNODE_LIST, msg, msgLen));
+  }
   
   SRpcMsg rpcMsg = {
       .msgType = TDMT_MND_QNODE_LIST,
       .pCont   = msg,
       .contLen = msgLen,
   };
-
-  if (async) {
-    CTG_RET(ctgAsyncSendMsg());
-  }
 
   SRpcMsg rpcRsp = {0};
 
@@ -61,7 +61,7 @@ int32_t ctgGetQnodeListFromMnode(CTG_PARAMS, SArray *out, bool async) {
 }
 
 
-int32_t ctgGetDBVgInfoFromMnode(CTG_PARAMS, SBuildUseDBInput *input, SUseDbOutput *out, bool async) {
+int32_t ctgGetDBVgInfoFromMnode(CTG_PARAMS, SBuildUseDBInput *input, SUseDbOutput *out, SCtgTask* pTask) {
   char *msg = NULL;
   int32_t msgLen = 0;
 
@@ -72,16 +72,16 @@ int32_t ctgGetDBVgInfoFromMnode(CTG_PARAMS, SBuildUseDBInput *input, SUseDbOutpu
     ctgError("Build use db msg failed, code:%x, db:%s", code, input->db);
     CTG_ERR_RET(code);
   }
+
+  if (pTask) {
+    CTG_RET(ctgAsyncSendMsg(CTG_PARAMS_LIST(), pTask, TDMT_MND_USE_DB, msg, msgLen));
+  }
   
   SRpcMsg rpcMsg = {
       .msgType = TDMT_MND_USE_DB,
       .pCont   = msg,
       .contLen = msgLen,
   };
-
-  if (async) {
-    CTG_RET(ctgAsyncSendMsg());
-  }
 
   SRpcMsg rpcRsp = {0};
 
@@ -102,7 +102,7 @@ int32_t ctgGetDBVgInfoFromMnode(CTG_PARAMS, SBuildUseDBInput *input, SUseDbOutpu
   return TSDB_CODE_SUCCESS;
 }
 
-int32_t ctgGetDBCfgFromMnode(CTG_PARAMS, const char *dbFName, SDbCfgInfo *out, bool async) {
+int32_t ctgGetDBCfgFromMnode(CTG_PARAMS, const char *dbFName, SDbCfgInfo *out, SCtgTask* pTask) {
   char *msg = NULL;
   int32_t msgLen = 0;
 
@@ -113,16 +113,16 @@ int32_t ctgGetDBCfgFromMnode(CTG_PARAMS, const char *dbFName, SDbCfgInfo *out, b
     ctgError("Build get db cfg msg failed, code:%x, db:%s", code, dbFName);
     CTG_ERR_RET(code);
   }
+
+  if (pTask) {
+    CTG_RET(ctgAsyncSendMsg(CTG_PARAMS_LIST(), pTask, TDMT_MND_GET_DB_CFG, msg, msgLen));
+  }
   
   SRpcMsg rpcMsg = {
       .msgType = TDMT_MND_GET_DB_CFG,
       .pCont   = msg,
       .contLen = msgLen,
   };
-
-  if (async) {
-    CTG_RET(ctgAsyncSendMsg());
-  }
 
   SRpcMsg rpcRsp = {0};
 
@@ -143,7 +143,7 @@ int32_t ctgGetDBCfgFromMnode(CTG_PARAMS, const char *dbFName, SDbCfgInfo *out, b
   return TSDB_CODE_SUCCESS;
 }
 
-int32_t ctgGetIndexInfoFromMnode(CTG_PARAMS, const char *indexName, SIndexInfo *out, bool async) {
+int32_t ctgGetIndexInfoFromMnode(CTG_PARAMS, const char *indexName, SIndexInfo *out, SCtgTask* pTask) {
   char *msg = NULL;
   int32_t msgLen = 0;
 
@@ -154,16 +154,16 @@ int32_t ctgGetIndexInfoFromMnode(CTG_PARAMS, const char *indexName, SIndexInfo *
     ctgError("Build get index msg failed, code:%x, db:%s", code, indexName);
     CTG_ERR_RET(code);
   }
+
+  if (pTask) {
+    CTG_RET(ctgAsyncSendMsg(CTG_PARAMS_LIST(), pTask, TDMT_MND_GET_INDEX, msg, msgLen));
+  }
   
   SRpcMsg rpcMsg = {
       .msgType = TDMT_MND_GET_INDEX,
       .pCont   = msg,
       .contLen = msgLen,
   };
-
-  if (async) {
-    CTG_RET(ctgAsyncSendMsg());
-  }
 
   SRpcMsg rpcRsp = {0};
 
@@ -184,7 +184,7 @@ int32_t ctgGetIndexInfoFromMnode(CTG_PARAMS, const char *indexName, SIndexInfo *
   return TSDB_CODE_SUCCESS;
 }
 
-int32_t ctgGetUdfInfoFromMnode(CTG_PARAMS, const char *funcName, SFuncInfo **out, bool async) {
+int32_t ctgGetUdfInfoFromMnode(CTG_PARAMS, const char *funcName, SFuncInfo **out, SCtgTask* pTask) {
   char *msg = NULL;
   int32_t msgLen = 0;
 
@@ -195,16 +195,16 @@ int32_t ctgGetUdfInfoFromMnode(CTG_PARAMS, const char *funcName, SFuncInfo **out
     ctgError("Build get udf msg failed, code:%x, db:%s", code, funcName);
     CTG_ERR_RET(code);
   }
+
+  if (pTask) {
+    CTG_RET(ctgAsyncSendMsg(CTG_PARAMS_LIST(), pTask, TDMT_MND_RETRIEVE_FUNC, msg, msgLen));
+  }
   
   SRpcMsg rpcMsg = {
       .msgType = TDMT_MND_RETRIEVE_FUNC,
       .pCont   = msg,
       .contLen = msgLen,
   };
-
-  if (async) {
-    CTG_RET(ctgAsyncSendMsg());
-  }
 
   SRpcMsg rpcRsp = {0};
 
@@ -231,7 +231,7 @@ int32_t ctgGetUdfInfoFromMnode(CTG_PARAMS, const char *funcName, SFuncInfo **out
   return TSDB_CODE_SUCCESS;
 }
 
-int32_t ctgGetUserDbAuthFromMnode(CTG_PARAMS, const char *user, SGetUserAuthRsp *authRsp, bool async) {
+int32_t ctgGetUserDbAuthFromMnode(CTG_PARAMS, const char *user, SGetUserAuthRsp *authRsp, SCtgTask* pTask) {
   char *msg = NULL;
   int32_t msgLen = 0;
 
@@ -242,16 +242,16 @@ int32_t ctgGetUserDbAuthFromMnode(CTG_PARAMS, const char *user, SGetUserAuthRsp 
     ctgError("Build get user auth msg failed, code:%x, db:%s", code, user);
     CTG_ERR_RET(code);
   }
+
+  if (pTask) {
+    CTG_RET(ctgAsyncSendMsg(CTG_PARAMS_LIST(), pTask, TDMT_MND_GET_USER_AUTH, msg, msgLen));
+  }
   
   SRpcMsg rpcMsg = {
       .msgType = TDMT_MND_GET_USER_AUTH,
       .pCont   = msg,
       .contLen = msgLen,
   };
-
-  if (async) {
-    CTG_RET(ctgAsyncSendMsg());
-  }
 
   SRpcMsg rpcRsp = {0};
 
@@ -273,7 +273,7 @@ int32_t ctgGetUserDbAuthFromMnode(CTG_PARAMS, const char *user, SGetUserAuthRsp 
 }
 
 
-int32_t ctgGetTbMetaFromMnodeImpl(CTG_PARAMS, char *dbFName, char* tbName, STableMetaOutput* output, bool async) {
+int32_t ctgGetTbMetaFromMnodeImpl(CTG_PARAMS, char *dbFName, char* tbName, STableMetaOutput* output, SCtgTask* pTask) {
   SBuildTableMetaInput bInput = {.vgId = 0, .dbFName = dbFName, .tbName = tbName};
   char *msg = NULL;
   SEpSet *pVnodeEpSet = NULL;
@@ -287,15 +287,15 @@ int32_t ctgGetTbMetaFromMnodeImpl(CTG_PARAMS, char *dbFName, char* tbName, STabl
     CTG_ERR_RET(code);
   }
 
+  if (pTask) {
+    CTG_RET(ctgAsyncSendMsg(CTG_PARAMS_LIST(), pTask, TDMT_MND_TABLE_META, msg, msgLen));
+  }
+
   SRpcMsg rpcMsg = {
       .msgType = TDMT_MND_TABLE_META,
       .pCont   = msg,
       .contLen = msgLen,
   };
-
-  if (async) {
-    CTG_RET(ctgAsyncSendMsg());
-  }
 
   SRpcMsg rpcRsp = {0};
 
@@ -323,18 +323,18 @@ int32_t ctgGetTbMetaFromMnodeImpl(CTG_PARAMS, char *dbFName, char* tbName, STabl
   return TSDB_CODE_SUCCESS;
 }
 
-int32_t ctgGetTbMetaFromMnode(CTG_PARAMS, const SName* pTableName, STableMetaOutput* output, bool async) {
+int32_t ctgGetTbMetaFromMnode(CTG_PARAMS, const SName* pTableName, STableMetaOutput* output, SCtgTask* pTask) {
   char dbFName[TSDB_DB_FNAME_LEN];
   tNameGetFullDbName(pTableName, dbFName);
 
   return ctgGetTbMetaFromMnodeImpl(CTG_PARAMS_LIST(), dbFName, (char *)pTableName->tname, output, async);
 }
 
-int32_t ctgGetTbMetaFromVnode(CTG_PARAMS, const SName* pTableName, SVgroupInfo *vgroupInfo, STableMetaOutput* output, bool async) {
+int32_t ctgGetTbMetaFromVnode(CTG_PARAMS, const SName* pTableName, SVgroupInfo *vgroupInfo, STableMetaOutput* output, SCtgTask* pTask) {
   char dbFName[TSDB_DB_FNAME_LEN];
   tNameGetFullDbName(pTableName, dbFName);
 
-  ctgDebug("try to get table meta from vnode, dbFName:%s, tbName:%s", dbFName, tNameGetTableName(pTableName));
+  ctgDebug("try to get table meta from vnode, vgId:%d, dbFName:%s, tbName:%s", vgroupInfo->vgId, dbFName, tNameGetTableName(pTableName));
 
   SBuildTableMetaInput bInput = {.vgId = vgroupInfo->vgId, .dbFName = dbFName, .tbName = (char *)tNameGetTableName(pTableName)};
   char *msg = NULL;
@@ -346,15 +346,15 @@ int32_t ctgGetTbMetaFromVnode(CTG_PARAMS, const SName* pTableName, SVgroupInfo *
     CTG_ERR_RET(code);
   }
 
+  if (pTask) {
+    CTG_RET(ctgAsyncSendMsg(CTG_PARAMS_LIST(), pTask, TDMT_VND_TABLE_META, msg, msgLen));
+  }
+
   SRpcMsg rpcMsg = {
       .msgType = TDMT_VND_TABLE_META,
       .pCont   = msg,
       .contLen = msgLen,
   };
-
-  if (async) {
-    CTG_RET(ctgAsyncSendMsg());
-  }
 
   SRpcMsg rpcRsp = {0};
   rpcSendRecv(pTrans, &vgroupInfo->epSet, &rpcMsg, &rpcRsp);
@@ -380,8 +380,74 @@ int32_t ctgGetTbMetaFromVnode(CTG_PARAMS, const SName* pTableName, SVgroupInfo *
   return TSDB_CODE_SUCCESS;
 }
 
+int32_t ctgHandleMsgCallback(void *param, const SDataBuf *pMsg, int32_t code) {
+  return schHandleCallback(param, pMsg, TDMT_VND_CREATE_TABLE_RSP, code);
+}
 
-int32_t ctg
+
+int32_t ctgMakeMsgSendInfo(SCtgTask* pTask, int32_t msgType, SMsgSendInfo **pMsgSendInfo) {
+  int32_t       code = 0;
+  SMsgSendInfo *msgSendInfo = taosMemoryCalloc(1, sizeof(SMsgSendInfo));
+  if (NULL == msgSendInfo) {
+    ctgError("calloc %d failed", (int32_t)sizeof(SMsgSendInfo));
+    CTG_ERR_RET(TSDB_CODE_QRY_OUT_OF_MEMORY);
+  }
+
+  SCtgTaskCallbackParam *param = taosMemoryCalloc(1, sizeof(SCtgTaskCallbackParam));
+  if (NULL == param) {
+    ctgError("calloc %d failed", (int32_t)sizeof(SSchTaskCallbackParam));
+    CTG_ERR_JRET(TSDB_CODE_QRY_OUT_OF_MEMORY);
+  }
+
+  param->rspType = msgType + 1;
+  param->queryId = pTask->pJob->queryId;
+  param->refId = pTask->pJob->refId;
+  param->taskId = pTask->taskId;
+
+  msgSendInfo->param = param;
+  msgSendInfo->fp = ctgHandleMsgCallback;
+
+  *pMsgSendInfo = msgSendInfo;
+
+  return TSDB_CODE_SUCCESS;
+
+_return:
+
+  taosMemoryFree(param);
+  taosMemoryFree(msgSendInfo);
+
+  SCH_RET(code);
+}
+
+int32_t ctgAsyncSendMsg(CTG_PARAMS, SCtgTask* pTask, int32_t msgType, void *msg, uint32_t msgSize) {
+  int32_t code = 0;
+  SMsgSendInfo *pMsgSendInfo = NULL;
+  SCH_ERR_JRET(ctgMakeMsgSendInfo(pTask, msgType, &pMsgSendInfo));
+
+  pMsgSendInfo->msgInfo.pData = msg;
+  pMsgSendInfo->msgInfo.len = msgSize;
+  pMsgSendInfo->msgInfo.handle = NULL;
+  pMsgSendInfo->msgType = msgType;
+
+  int64_t transporterId = 0;
+  code = asyncSendMsgToServer(pTrans, pMgmtEps, &transporterId, pMsgSendInfo);
+  if (code) {
+    ctgError("asyncSendMsgToSever failed, error: %s", tstrerror(code));
+    CTG_ERR_JRET(code);
+  }
+
+  SCH_TASK_DLOG("req msg sent, reqId:%" PRIx64 ", msg type:%d, %s", pTask->pJob->queryId, msgType, TMSG_INFO(msgType));
+  return TSDB_CODE_SUCCESS;
+
+_return:
+
+  if (pMsgSendInfo) {
+    taosMemoryFreeClear(pMsgSendInfo->param);
+    taosMemoryFreeClear(pMsgSendInfo);
+  }
+
+  SCH_RET(code);
+}
 
 
 

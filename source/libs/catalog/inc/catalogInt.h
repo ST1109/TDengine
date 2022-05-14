@@ -58,6 +58,11 @@ enum {
   CTG_ACT_MAX
 };
 
+typedef enum {
+  CTG_TASK_GET_TB_META = 0,
+  CTG_TASK_GET_DB_VGROUP,
+} CTG_TASK_TYPE;
+
 typedef struct SCtgDebug {
   bool     lockEnable;
   bool     cacheEnable;
@@ -66,6 +71,18 @@ typedef struct SCtgDebug {
   uint32_t showCachePeriodSec;
 } SCtgDebug;
 
+typedef struct SCtgTbCacheInfo {
+  bool     inCache;
+  uint64_t dbId;
+  uint64_t suid;
+  int32_t  tbType;
+} SCtgTbCacheInfo;
+
+typedef struct SCtgTbMetaCtx {
+  SCtgTbCacheInfo tbInfo;
+  const SName* pName;
+  int32_t flag;
+} SCtgTbMetaCtx;
 
 typedef struct SCtgTbMetaCache {
   SRWLatch  stbLock;
@@ -112,6 +129,59 @@ typedef struct SCatalog {
   SCtgRentMgmt     dbRent;
   SCtgRentMgmt     stbRent;
 } SCatalog;
+
+typedef struct SCtgJob {
+  int64_t          refId;
+  uint64_t         queryId;
+  SCatalog*        pCtg; 
+  void*            pTrans; 
+  const SEpSet*    pMgmtEps;
+  SArray*          pTasks;
+  
+  SSchJobAttr      attr;
+  int32_t          levelNum;
+  int32_t          taskNum;
+  void            *transport;
+  SArray          *nodeList;   // qnode/vnode list, SArray<SQueryNodeAddr>
+  SArray          *levels;    // starting from 0. SArray<SSchLevel>
+  SNodeList       *subPlans;  // subplan pointer copied from DAG, no need to free it in scheduler
+
+  int32_t          levelIdx;
+  SEpSet           dataSrcEps;
+  SHashObj        *execTasks; // executing tasks, key:taskid, value:SQueryTask*
+  SHashObj        *succTasks; // succeed tasks, key:taskid, value:SQueryTask*
+  SHashObj        *failTasks; // failed tasks, key:taskid, value:SQueryTask*
+
+  int8_t           status;  
+  SQueryNodeAddr   resNode;
+  tsem_t           rspSem;
+  int8_t           userFetch;
+  int32_t          remoteFetch;
+  SSchTask        *fetchTask;
+  int32_t          errCode;
+  SArray          *errList;    // SArray<SQueryErrorInfo>
+  SRWLatch         resLock;
+  void            *resData;         //TODO free it or not
+  int32_t          resNumOfRows;
+  const char      *sql;
+  SQueryProfileSummary summary;
+} SCtgJob;
+
+typedef struct SCtgTask {
+  CTG_TASK_TYPE type;
+  int32_t  taskId;
+  SCtgJob *pJob;
+  void* ctx;
+  void* res;
+} SCtgTask;
+
+typedef int32_t (*ctgLanchTaskFp)(SCtgTask*);
+typedef int32_t (*ctgHandleTaskMsgRspFp)(SCtgTask*, void *);
+
+typedef struct SCtgAsyncFps {
+  ctgLanchTaskFp launchFp;
+  ctgHandleTaskMsgRspFp rspFp;
+} SCtgAsyncFps;
 
 typedef struct SCtgApiStat {
 
