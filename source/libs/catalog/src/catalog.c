@@ -460,6 +460,12 @@ int32_t catalogInit(SCatalogCfg *cfg) {
   }
   gCtgMgmt.queue.tail = gCtgMgmt.queue.head;
 
+  gCtgMgmt.jobPool = taosOpenRef(200, ctgFreeJob);
+  if (gCtgMgmt.jobPool < 0) {
+    qError("taosOpenRef failed, error:%s", tstrerror(terrno));
+    CTG_ERR_RET(terrno);
+  }
+
   CTG_ERR_RET(ctgStartUpdateThread());
 
   qDebug("catalog initialized, maxDb:%u, maxTbl:%u, dbRentSec:%u, stbRentSec:%u", gCtgMgmt.cfg.maxDBCacheNum, gCtgMgmt.cfg.maxTblCacheNum, gCtgMgmt.cfg.dbRentSec, gCtgMgmt.cfg.stbRentSec);
@@ -943,7 +949,7 @@ _return:
   CTG_API_LEAVE(code);
 }
 
-int32_t catalogAsyncGetAllMeta(SCatalog* pCtg, void *pTrans, const SEpSet* pMgmtEps, uint64_t reqId, const SCatalogReq* pReq, void* fp, void* param) {
+int32_t catalogAsyncGetAllMeta(SCatalog* pCtg, void *pTrans, const SEpSet* pMgmtEps, uint64_t reqId, const SCatalogReq* pReq, void* fp, void* param, int64_t* jobId) {
   CTG_API_ENTER();
 
   if (NULL == pCtg || NULL == pTrans || NULL == pMgmtEps || NULL == pReq || NULL == fp || NULL == param) {
@@ -956,8 +962,18 @@ int32_t catalogAsyncGetAllMeta(SCatalog* pCtg, void *pTrans, const SEpSet* pMgmt
 
   CTG_ERR_JRET(ctgLaunchJob(pJob));
 
+  *jobId = pJob->refId;
+  
 _return:
 
+  if (pJob) {
+    taosReleaseRef(gCtgMgmt.jobPool, pJob->refId);
+
+    if (code) {
+      taosRemoveRef(gCtgMgmt.jobPool, pJob->refId);
+    }
+  }
+  
   CTG_API_LEAVE(code);
 }
 

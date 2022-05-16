@@ -108,6 +108,35 @@ void ctgFreeHandle(SCatalog* pCtg) {
   taosMemoryFree(pCtg);
 }
 
+void ctgFreeMsgCtx(SCtgMsgCtx* pCtx) {
+  if (pCtx->out) {
+    free it;
+  }
+
+  taosMemoryFreeClear(pCtx->target);
+}
+
+void ctgFreeJob(void* job) {
+
+}
+
+int32_t ctgUpdateMsgCtx(SCtgMsgCtx* pCtx, int32_t reqType, void* out, char* target) {
+  ctgFreeMsgCtx(pCtx);
+
+  pCtx->reqType = reqType;
+  pCtx->out = out;
+  if (target) {
+    pCtx->target = strdup(target);
+    if (NULL == pCtx->target) {
+      CTG_ERR_RET(TSDB_CODE_OUT_OF_MEMORY);
+    }
+  } else {
+    pCtx->target = NULL;
+  }
+
+  return TSDB_CODE_SUCCESS;
+}
+
 
 int32_t ctgGetHashFunction(int8_t hashMethod, tableNameHashFp *fp) {
   switch (hashMethod) {

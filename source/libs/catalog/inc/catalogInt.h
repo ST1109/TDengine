@@ -137,46 +137,32 @@ typedef struct SCtgJob {
   void*            pTrans; 
   const SEpSet*    pMgmtEps;
   SArray*          pTasks;
+  int32_t          taskDone;
+  SMetaData        jobRes;
+  int32_t          rspCode;
   
-  SSchJobAttr      attr;
-  int32_t          levelNum;
-  int32_t          taskNum;
-  void            *transport;
-  SArray          *nodeList;   // qnode/vnode list, SArray<SQueryNodeAddr>
-  SArray          *levels;    // starting from 0. SArray<SSchLevel>
-  SNodeList       *subPlans;  // subplan pointer copied from DAG, no need to free it in scheduler
-
-  int32_t          levelIdx;
-  SEpSet           dataSrcEps;
-  SHashObj        *execTasks; // executing tasks, key:taskid, value:SQueryTask*
-  SHashObj        *succTasks; // succeed tasks, key:taskid, value:SQueryTask*
-  SHashObj        *failTasks; // failed tasks, key:taskid, value:SQueryTask*
-
-  int8_t           status;  
-  SQueryNodeAddr   resNode;
-  tsem_t           rspSem;
-  int8_t           userFetch;
-  int32_t          remoteFetch;
-  SSchTask        *fetchTask;
-  int32_t          errCode;
-  SArray          *errList;    // SArray<SQueryErrorInfo>
-  SRWLatch         resLock;
-  void            *resData;         //TODO free it or not
-  int32_t          resNumOfRows;
-  const char      *sql;
-  SQueryProfileSummary summary;
+  void*            userParam;
+  __async*            userFp;
 } SCtgJob;
+
+typedef struct SCtgMsgCtx {
+  int32_t reqType;
+  void* lastOut;
+  void* out;
+  char* target;
+} SCtgMsgCtx;
 
 typedef struct SCtgTask {
   CTG_TASK_TYPE type;
   int32_t  taskId;
   SCtgJob *pJob;
-  void* ctx;
+  void* taskCtx;
+  SCtgMsgCtx msgCtx;
   void* res;
 } SCtgTask;
 
 typedef int32_t (*ctgLanchTaskFp)(SCtgTask*);
-typedef int32_t (*ctgHandleTaskMsgRspFp)(SCtgTask*, void *);
+typedef int32_t (*ctgHandleTaskMsgRspFp)(SCtgTask*, int32_t, const SDataBuf *, int32_t);
 
 typedef struct SCtgAsyncFps {
   ctgLanchTaskFp launchFp;
@@ -283,6 +269,7 @@ typedef struct SCtgQueue {
 
 typedef struct SCatalogMgmt {
   bool                  exit;
+  int32_t               jobPool;
   SRWLatch              lock;
   SCtgQueue             queue;
   TdThread              updateThread;  

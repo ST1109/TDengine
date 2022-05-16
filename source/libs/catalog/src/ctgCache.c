@@ -170,7 +170,6 @@ int32_t ctgAcquireVgInfoFromCache(SCatalog* pCtg, const char *dbFName, SCtgDBCac
   }
 
   *pCache = dbCache;
-  *inCache = true;
 
   CTG_CACHE_STAT_ADD(vgHitNum, 1);
 
