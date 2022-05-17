@@ -277,8 +277,10 @@ class TDDnode:
         tdLog.debug("dnode:%d is running with %s " % (self.index, cmd))
         if self.valgrind == 0:
             time.sleep(0.1)
-            key = 'from offline to online'
-            bkey = bytes(key, encoding="utf8")
+            key1 = 'from offline to online' 
+            key2 = 'TDengine initialized successfully'
+            bkey1 = bytes(key1, encoding="utf8")
+            bkey2 = bytes(key2, encoding="utf8")
             logFile = self.logDir + "/taosdlog.0"
             i = 0
             while not os.path.exists(logFile):
@@ -296,7 +298,7 @@ class TDDnode:
             timeout = time.time() + 60 * 2
             while True:
                 line = popen.stdout.readline().strip()
-                if bkey in line:
+                if bkey1 in line or bkey2 in line:
                     popen.kill()
                     break
                 if time.time() > timeout:
