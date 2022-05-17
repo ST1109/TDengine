@@ -149,7 +149,7 @@ int32_t ctgGetDBCache(SCatalog* pCtg, const char *dbFName, SCtgDBCache **pCache)
 }
 
 
-int32_t ctgAcquireVgInfoFromCache(SCatalog* pCtg, const char *dbFName, SCtgDBCache **pCache, bool *inCache) {
+int32_t ctgAcquireVgInfoFromCache(SCatalog* pCtg, const char *dbFName, SCtgDBCache **pCache) {
   SCtgDBCache *dbCache = NULL;
 
   if (NULL == pCtg->dbCache) {
@@ -162,9 +162,10 @@ int32_t ctgAcquireVgInfoFromCache(SCatalog* pCtg, const char *dbFName, SCtgDBCac
     ctgDebug("db %s not in cache", dbFName);
     goto _return;
   }
-  
-  ctgAcquireVgInfo(pCtg, dbCache, inCache);
-  if (!(*inCache)) {
+
+  bool inCache = false;
+  ctgAcquireVgInfo(pCtg, dbCache, &inCache);
+  if (!inCache) {
     ctgDebug("vgInfo of db %s not in cache", dbFName);
     goto _return;
   }
@@ -184,7 +185,6 @@ _return:
   }
 
   *pCache = NULL;
-  *inCache = false;
 
   CTG_CACHE_STAT_ADD(vgMissNum, 1);
   
@@ -1058,21 +1058,24 @@ int32_t ctgWriteTbMetaToCache(SCatalog *pCtg, SCtgDBCache *dbCache, char *dbFNam
   STableMeta *orig = taosHashGet(tbCache->metaCache, tbName, strlen(tbName));
   if (orig) {
     origType = orig->tableType;
+
+    if (origType == meta->tableType && orig->uid == meta->uid && orig->sversion >= meta->sversion && orig->tversion >= meta->tversion) {
+      CTG_UNLOCK(CTG_READ, &tbCache->metaLock);  
+      return TSDB_CODE_SUCCESS;
+    }
     
     if (origType == TSDB_SUPER_TABLE) {
-      if ((!isStb) || orig->suid != meta->suid) {
-        CTG_LOCK(CTG_WRITE, &tbCache->stbLock);
-        if (taosHashRemove(tbCache->stbCache, &orig->suid, sizeof(orig->suid))) {
-          ctgError("stb not exist in stbCache, dbFName:%s, stb:%s, suid:%"PRIx64, dbFName, tbName, orig->suid);
-        } else {
-          CTG_CACHE_STAT_SUB(stblNum, 1);
-        }
-        CTG_UNLOCK(CTG_WRITE, &tbCache->stbLock);
-
-        ctgDebug("stb removed from stbCache, dbFName:%s, stb:%s, suid:%"PRIx64, dbFName, tbName, orig->suid);
-        
-        ctgMetaRentRemove(&pCtg->stbRent, orig->suid, ctgStbVersionSortCompare, ctgStbVersionSearchCompare);
+      CTG_LOCK(CTG_WRITE, &tbCache->stbLock);
+      if (taosHashRemove(tbCache->stbCache, &orig->suid, sizeof(orig->suid))) {
+        ctgError("stb not exist in stbCache, dbFName:%s, stb:%s, suid:%"PRIx64, dbFName, tbName, orig->suid);
+      } else {
+        CTG_CACHE_STAT_SUB(stblNum, 1);
       }
+      CTG_UNLOCK(CTG_WRITE, &tbCache->stbLock);
+
+      ctgDebug("stb removed from stbCache, dbFName:%s, stb:%s, suid:%"PRIx64, dbFName, tbName, orig->suid);
+      
+      ctgMetaRentRemove(&pCtg->stbRent, orig->suid, ctgStbVersionSortCompare, ctgStbVersionSearchCompare);
 
       origSuid = orig->suid;
     }
@@ -1104,12 +1107,6 @@ int32_t ctgWriteTbMetaToCache(SCatalog *pCtg, SCtgDBCache *dbCache, char *dbFNam
     return TSDB_CODE_SUCCESS;
   }
 
-  if (origType == TSDB_SUPER_TABLE && origSuid == meta->suid) {
-    CTG_UNLOCK(CTG_WRITE, &tbCache->stbLock);
-    CTG_UNLOCK(CTG_READ, &tbCache->metaLock);  
-    return TSDB_CODE_SUCCESS;
-  }
-
   STableMeta *tbMeta = taosHashGet(tbCache->metaCache, tbName, strlen(tbName));
   if (taosHashPut(tbCache->stbCache, &meta->suid, sizeof(meta->suid), &tbMeta, POINTER_BYTES) != 0) {
     CTG_UNLOCK(CTG_WRITE, &tbCache->stbLock);
@@ -1133,6 +1130,22 @@ int32_t ctgWriteTbMetaToCache(SCatalog *pCtg, SCtgDBCache *dbCache, char *dbFNam
   
   return TSDB_CODE_SUCCESS;
 }
+
+int32_t ctgUpdateTbMetaToCache(SCatalog* pCtg, STableMetaOutput* pOut, bool syncReq) {
+  STableMetaOutput* pOutput = NULL;
+  int32_t code = 0;
+  
+  CTG_ERR_RET(ctgCloneMetaOutput(pOut, &pOutput));
+  CTG_ERR_JRET(ctgPutUpdateTbToQueue(pCtg, pOutput, syncReq));
+
+  return TSDB_CODE_SUCCESS;
+  
+_return:
+
+  ctgFreeSTableMetaOutput(pOutput);
+  CTG_RET(code);
+}
+
 
 int32_t ctgActUpdateVg(SCtgMetaAction *action) {
   int32_t code = 0;

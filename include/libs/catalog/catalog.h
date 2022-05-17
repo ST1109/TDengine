@@ -47,14 +47,17 @@ typedef enum {
 } AUTH_TYPE;
 
 typedef struct SCatalogReq {
-  SArray *pTableName;     // element is SNAME
+  SArray *pTableMeta;     // element is SNAME
+  SArray *pDb;            // element is db full name
+  SArray *pTableHash;     // element is SNAME
   SArray *pUdf;           // udf name
   bool    qNodeRequired;  // valid qnode
 } SCatalogReq;
 
 typedef struct SMetaData {
-  SArray    *pTableMeta;  // STableMeta array
-  SArray    *pVgroupInfo; // SVgroupInfo list
+  SArray    *pTableMeta;  // SArray<STableMeta>
+  SArray    *pDbVgroup;   // SArray<SArray*>
+  SArray    *pTableHash;  // SArray<SVgroupInfo>
   SArray    *pUdfList;    // udf info list
   SArray    *pQnodeList;  // qnode list, SArray<SQueryNodeAddr>
 } SMetaData;
@@ -91,6 +94,8 @@ typedef struct SUserAuthVersion {
 typedef SDbCfgRsp SDbCfgInfo;
 typedef SUserIndexRsp SIndexInfo;
 
+typedef void (*catalogCallback)(SMetaData* pResult, void* param, int32_t code);
+
 int32_t catalogInit(SCatalogCfg *cfg);
 
 /**
@@ -126,7 +131,7 @@ int32_t catalogUpdateDBVgInfo(SCatalog* pCatalog, const char* dbName, uint64_t d
 
 int32_t catalogRemoveDB(SCatalog* pCatalog, const char* dbName, uint64_t dbId);
 
-int32_t catalogRemoveTableMeta(SCatalog* pCtg, const SName* pTableName);
+int32_t catalogRemoveTableMeta(SCatalog* pCtg, SName* pTableName);
 
 int32_t catalogRemoveStbMeta(SCatalog* pCtg, const char* dbFName, uint64_t dbId, const char* stbName, uint64_t suid);
 

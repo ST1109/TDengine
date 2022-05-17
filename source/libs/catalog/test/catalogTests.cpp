@@ -40,8 +40,6 @@
 
 namespace {
 
-extern "C" int32_t ctgReadTbMetaFromCache(struct SCatalog *pCatalog, const SName *pTableName, STableMeta **pTableMeta,
-                                            bool *inCache, int32_t flag, uint64_t *dbId);
 extern "C" int32_t ctgdGetClusterCacheNum(struct SCatalog* pCatalog, int32_t type);
 extern "C" int32_t ctgActUpdateTb(SCtgMetaAction *action);
 extern "C" int32_t ctgdEnableDebug(char *option);
@@ -52,7 +50,7 @@ void ctgTestSetRspCTableMeta();
 void ctgTestSetRspSTableMeta();
 void ctgTestSetRspMultiSTableMeta();
 
-extern "C" SCatalogMgmt gCtgMgmt;
+//extern "C" SCatalogMgmt gCtgMgmt;
 
 enum {
   CTGT_RSP_VGINFO = 1,
@@ -859,8 +857,12 @@ void *ctgTestGetCtableMetaThread(void *param) {
   strcpy(cn.dbname, "db1");
   strcpy(cn.tname, ctgTestCTablename);
 
+  SCtgTbMetaCtx ctx = {0};
+  ctx.pName = &cn;
+  ctx.flag = CTG_FLAG_UNKNOWN_STB;
+
   while (!ctgTestStop) {
-    code = ctgReadTbMetaFromCache(pCtg, &cn, &tbMeta, &inCache, 0, NULL);
+    code = ctgReadTbMetaFromCache(pCtg, &ctx, &tbMeta);
     if (code || !inCache) {
       assert(0);
     }

@@ -108,16 +108,155 @@ void ctgFreeHandle(SCatalog* pCtg) {
   taosMemoryFree(pCtg);
 }
 
-void ctgFreeMsgCtx(SCtgMsgCtx* pCtx) {
-  if (pCtx->out) {
-    free it;
+
+void ctgFreeSUseDbOutput(SUseDbOutput* pOutput) {
+  if (NULL == pOutput || NULL == pOutput->dbVgroup) {
+    return;
   }
 
+  taosHashCleanup(pOutput->dbVgroup->vgHash);
+  taosMemoryFreeClear(pOutput->dbVgroup);
+  taosMemoryFree(pOutput);
+}
+
+void ctgFreeMsgCtx(SCtgMsgCtx* pCtx) {
   taosMemoryFreeClear(pCtx->target);
+  if (NULL == pCtx->out) {
+    return;
+  }
+  
+  switch (pCtx->reqType) {
+    case TDMT_MND_GET_DB_CFG: {
+      SDbCfgInfo* pOut = (SDbCfgInfo*)pCtx->out;
+      taosArrayDestroy(pOut->pRetensions);
+      taosMemoryFreeClear(pCtx->out);
+      break;
+    }
+    case TDMT_MND_USE_DB:{
+      SUseDbOutput* pOut = (SUseDbOutput*)pCtx->out;
+      ctgFreeSUseDbOutput(pOut);
+      pCtx->out = NULL;
+      break;
+    }
+    case TDMT_MND_GET_INDEX: {
+      SIndexInfo* pOut = (SIndexInfo*)pCtx->out;
+      taosMemoryFreeClear(pCtx->out);
+      break;
+    }
+    case TDMT_MND_QNODE_LIST: {
+      SArray* pOut = (SArray*)pCtx->out;
+      taosArrayDestroy(pOut);
+      pCtx->out = NULL;
+      break;
+    }
+    case TDMT_VND_TABLE_META:
+    case TDMT_MND_TABLE_META: {
+      STableMetaOutput* pOut = (STableMetaOutput*)pCtx->out;
+      taosMemoryFree(pOut->tbMeta);
+      taosMemoryFreeClear(pCtx->out);
+      break;
+    }
+    case TDMT_MND_RETRIEVE_FUNC: {
+      SFuncInfo* pOut = (SFuncInfo*)pCtx->out;
+      taosMemoryFree(pOut->pCode);
+      taosMemoryFree(pOut->pComment);
+      taosMemoryFreeClear(pCtx->out);
+      break;
+    }
+    case TDMT_MND_GET_USER_AUTH: {
+      SGetUserAuthRsp* pOut = (SGetUserAuthRsp*)pCtx->out;
+      taosHashCleanup(pOut->createdDbs);
+      taosHashCleanup(pOut->readDbs);
+      taosHashCleanup(pOut->writeDbs);
+      break;
+    }
+    default:
+      qError("invalid reqType %d", pCtx->reqType);
+      break;
+  }
+}
+
+void ctgFreeSTableMetaOutput(STableMetaOutput* pOutput) {
+  if (NULL == pOutput) {
+    return;
+  }
+  
+  taosMemoryFree(pOutput->tbMeta);
+  taosMemoryFree(pOutput);
+}
+
+
+void ctgResetTbMetaTask(SCtgTask* pTask) {
+  SCtgTbMetaCtx* taskCtx = (SCtgTbMetaCtx*)pTask->taskCtx;
+  memset(&taskCtx->tbInfo, 0, sizeof(taskCtx->tbInfo));
+  taskCtx->flag = CTG_FLAG_UNKNOWN_STB;
+  
+  if (pTask->msgCtx.lastOut) {
+    ctgFreeSTableMetaOutput((STableMetaOutput*)pTask->msgCtx.lastOut);
+    pTask->msgCtx.lastOut = NULL;
+  }
+  if (pTask->msgCtx.out) {
+    ctgFreeSTableMetaOutput((STableMetaOutput*)pTask->msgCtx.out);
+    pTask->msgCtx.out = NULL;
+  }
+  taosMemoryFreeClear(pTask->msgCtx.target);
+  taosMemoryFreeClear(pTask->res);
+}
+
+void ctgFreeTask(SCtgTask* pTask) {
+  ctgFreeMsgCtx(&pTask->msgCtx);
+  
+  switch (pTask->type) {
+    case CTG_TASK_GET_TB_META: {
+      SCtgTbMetaCtx* taskCtx = (SCtgTbMetaCtx*)pTask->taskCtx;
+      taosMemoryFreeClear(taskCtx->pName);
+      if (pTask->msgCtx.lastOut) {
+        ctgFreeSTableMetaOutput((STableMetaOutput*)pTask->msgCtx.lastOut);
+        pTask->msgCtx.lastOut = NULL;
+      }
+      taosMemoryFreeClear(pTask->res);
+      break;
+    }
+    case CTG_TASK_GET_DB_VGROUP: {
+      taosArrayDestroy((SArray*)pTask->res);
+      break;
+    }
+    case CTG_TASK_GET_TB_HASH: {
+      SCtgTbHashCtx* taskCtx = (SCtgTbHashCtx*)pTask->taskCtx;
+      taosMemoryFreeClear(taskCtx->pName);
+      taosMemoryFree(pTask->res);
+      break;
+    }
+    default:
+      qError("invalid task type %d", pTask->type);
+      break;
+  }
+}
+
+void ctgFreeTasks(SArray* pArray) {
+  if (NULL == pArray) {
+    return;
+  }
+
+  int32_t num = taosArrayGetSize(pArray);
+  for (int32_t i = 0; i < num; ++i) {
+    SCtgTask* pTask = taosArrayGet(pArray, i);
+    ctgFreeTask(pTask);
+  }
+
+  taosArrayDestroy(pArray);
 }
 
 void ctgFreeJob(void* job) {
+  if (NULL == job) {
+    return;
+  }
+  
+  SCtgJob* pJob = (SCtgJob*)job;
 
+  ctgFreeTasks(pJob->pTasks);
+
+  taosMemoryFree(job);
 }
 
 int32_t ctgUpdateMsgCtx(SCtgMsgCtx* pCtx, int32_t reqType, void* out, char* target) {
