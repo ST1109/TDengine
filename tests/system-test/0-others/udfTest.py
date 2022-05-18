@@ -642,7 +642,7 @@ class TDTestCase:
         self.basic_udf_query()
         self.loop_kill_udfd()
         self.restart_taosd_query_udf()
-        # self.unexpected_create()
+        self.unexpected_create()
         # self.test_function_name()
 
     def stop(self):
