@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019 TAOS Data, Inc. <jhtao@taosdata.com>
+ * Copyright (c) 2022 TAOS Data, Inc. <jhtao@taosdata.com>
  *
  * This program is free software: you can use, redistribute, and/or modify
  * it under the terms of the GNU Affero General Public License, version 3
@@ -31,7 +31,7 @@
 
 /**************** Global variables ****************/
 char      CLIENT_VERSION[] = "Welcome to the TDengine shell from %s, Client Version:%s\n"
-                             "Copyright (c) 2020 by TAOS Data, Inc. All rights reserved.\n\n";
+                             "Copyright (c) 2022 by TAOS Data, Inc. All rights reserved.\n\n";
 char      PROMPT_HEADER[] = "taos> ";
 char      CONTINUE_PROMPT[] = "   -> ";
 int       prompt_size = 6;
@@ -291,7 +291,20 @@ void shellRunCommandOnServer(TAOS *con, char command[]) {
     return;
   }
 
-  if (!tscIsUpdateQuery(pSql)) {  // select and show kinds of commands
+  if (tscIsDeleteQuery(pSql)) {
+    // delete
+    int numOfRows   = taos_affected_rows(pSql);
+    int numOfTables = taos_affected_tables(pSql);
+    int error_no    = taos_errno(pSql);
+
+    et = taosGetTimestampUs();
+    if (error_no == TSDB_CODE_SUCCESS) {
+      printf("Deleted %d row(s) from %d table(s) (%.6fs)\n", numOfRows, numOfTables, (et - st) / 1E6);
+    } else {
+      printf("Deleted interrupted (%s), %d row(s) from %d tables (%.6fs)\n", taos_errstr(pSql), numOfRows, numOfTables, (et - st) / 1E6);
+    }
+  }
+  else if (!tscIsUpdateQuery(pSql)) {  // select and show kinds of commands
     int error_no = 0;
 
     int numOfRows = shellDumpResult(pSql, fname, &error_no, printMode);

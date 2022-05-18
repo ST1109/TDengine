@@ -8,7 +8,7 @@ description: "taospy 是 TDengine 的官方 Python 连接器。taospy 提供了�
 import Tabs from "@theme/Tabs";
 import TabItem from "@theme/TabItem";
 
-`taospy` 是 TDengine 的官方 Python 连接器。`taospy` 提供了丰富的 API， 使得 Python 应用可以很方便地使用 TDengine。`tasopy` 对 TDengine 的[原生接口](/reference/connector/cpp)和 [REST 接口](/reference/rest-api)都进行了封装， 分别对应 `tasopy` 包的 `taos` 模块 和 `taosrest` 模块。
+`taospy` 是 TDengine 的官方 Python 连接器。`taospy` 提供了丰富的 API， 使得 Python 应用可以很方便地使用 TDengine。`taospy` 对 TDengine 的[原生接口](/reference/connector/cpp)和 [REST 接口](/reference/rest-api)都进行了封装， 分别对应 `taospy` 包的 `taos` 模块 和 `taosrest` 模块。
 除了对原生接口和 REST 接口的封装，`taospy` 还提供了符合 [Python 数据访问规范(PEP 249)](https://peps.python.org/pep-0249/) 的编程接口。这使得 `taospy` 和很多第三方工具集成变得简单，比如 [SQLAlchemy](https://www.sqlalchemy.org/) 和 [pandas](https://pandas.pydata.org/)。
 
 使用客户端驱动提供的原生接口直接与服务端建立的连接的方式下文中称为“原生连接”；使用 taosAdapter 提供的 REST 接口与服务端建立的连接的方式下文中称为“REST 连接”。
@@ -22,7 +22,7 @@ Python 连接器的源码托管在 [GitHub](https://github.com/taosdata/taos-con
 
 ## 版本选择
 
-无论使用什么版本的 TDengine 都建议使用最新版本的 `tasopy`。
+无论使用什么版本的 TDengine 都建议使用最新版本的 `taospy`。
 
 ## 支持的功能
 
@@ -52,7 +52,7 @@ pip3 uninstall taos taospy
 
 :::
 
-#### 安装 `tasopy`
+#### 安装 `taospy`
 
 <Tabs>
 <TabItem label="从 PyPI 安装" value="pypi">
@@ -122,7 +122,7 @@ Requirement already satisfied: taospy in c:\users\username\appdata\local\program
 <Tabs>
 <TabItem value="native" label="原生连接">
 
-请确保 TDengine 集群已经启动， 且集群中机器的 FQDN （如果启动的是单机版，FQDN 默认为 hostname）在本机能够解析, 可用 ping 命令进行测试：
+请确保 TDengine 集群已经启动， 且集群中机器的 FQDN （如果启动的是单机版，FQDN 默认为 hostname）在本机能够解析, 可用 `ping` 命令进行测试：
 
 ```
 ping <FQDN>
@@ -197,17 +197,13 @@ curl -u root:taosdata http://<FQDN>:<PORT>/rest/sql -d "select server_version()"
 {{#include docs-examples/python/connect_rest_examples.py:connect}}
 ```
 
-`connect` 函数的所有参数都是可选的关键字参数。下面是连接参数的具体说明：
+`connect()` 函数的所有参数都是可选的关键字参数。下面是连接参数的具体说明：
 
 - `host`： 要连接的主机。默认是 localhost。
 - `user`： TDenigne 用户名。默认是 root。
 - `password`： TDeingine 用户密码。默认是 taosdata。
 - `port`: taosAdapter REST 服务监听端口。默认是 6041.
 - `timeout`: HTTP 请求超时时间。单位为秒。默认为 `socket._GLOBAL_DEFAULT_TIMEOUT`。 一般无需配置。
-
-:::note
-
-:::
 
 </TabItem>
 </Tabs>
@@ -232,12 +228,12 @@ curl -u root:taosdata http://<FQDN>:<PORT>/rest/sql -d "select server_version()"
 ```
 
 :::tip
-查询结果只能获取一次。比如上面的示例中 `featch_all` 和 `fetch_all_into_dict` 只能用一个。重复获取得到的结果为空列表。
+查询结果只能获取一次。比如上面的示例中 `fetch_all()` 和 `fetch_all_into_dict()` 只能用一个。重复获取得到的结果为空列表。
 :::
 
 ##### TaosResult 类的使用
 
-上面 `TaosConnection` 类的使用示例中，我们已经展示了两种获取查询结果的方法： `featch_all` 和 `fetch_all_into_dict`。除此之外 `TaosResult` 还提供了按行迭代(`rows_iter`)或按数据块迭代(`blocks_iter`)结果集的方法。在查询数据量较大的场景，使用这两个方法会更高效。
+上面 `TaosConnection` 类的使用示例中，我们已经展示了两种获取查询结果的方法： `fetch_all()` 和 `fetch_all_into_dict()`。除此之外 `TaosResult` 还提供了按行迭代(`rows_iter`)或按数据块迭代(`blocks_iter`)结果集的方法。在查询数据量较大的场景，使用这两个方法会更高效。
 
 ```python title="blocks_iter 方法"
 {{#include docs-examples/python/result_set_examples.py}}
