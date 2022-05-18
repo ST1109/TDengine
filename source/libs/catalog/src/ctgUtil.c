@@ -19,6 +19,19 @@
 #include "catalogInt.h"
 #include "systable.h"
 
+void ctgFreeSMetaData(SMetaData* pData) {
+  taosArrayDestroy(pData->pTableMeta);
+  pData->pTableMeta = NULL;
+  taosArrayDestroy(pData->pUdfList);
+  pData->pUdfList = NULL;
+}
+
+void ctgFreeSCtgUserAuth(SCtgUserAuth *userCache) {
+  taosHashCleanup(userCache->createdDbs);
+  taosHashCleanup(userCache->readDbs);
+  taosHashCleanup(userCache->writeDbs);
+}
+
 void ctgFreeMetaRent(SCtgRentMgmt *mgmt) {
   if (NULL == mgmt->slots) {
     return;
@@ -104,7 +117,24 @@ void ctgFreeHandle(SCatalog* pCtg) {
     
     CTG_CACHE_STAT_SUB(dbNum, dbNum);
   }
-  
+
+  if (pCtg->userCache) {
+    int32_t userNum = taosHashGetSize(pCtg->userCache);
+
+    void *pIter = taosHashIterate(pCtg->userCache, NULL);
+    while (pIter) {
+      SCtgUserAuth *userCache = pIter;
+
+      ctgFreeSCtgUserAuth(userCache);
+
+      pIter = taosHashIterate(pCtg->userCache, pIter);
+    }  
+
+    taosHashCleanup(pCtg->userCache);
+
+    CTG_CACHE_STAT_SUB(userNum, userNum);
+  }
+
   taosMemoryFree(pCtg);
 }
 
@@ -219,12 +249,25 @@ void ctgFreeTask(SCtgTask* pTask) {
     }
     case CTG_TASK_GET_DB_VGROUP: {
       taosArrayDestroy((SArray*)pTask->res);
+      pTask->res = NULL;
+      break;
+    }
+    case CTG_TASK_GET_DB_CFG: {
+      if (pTask->res) {
+        taosArrayDestroy(((SDbCfgInfo*)pTask->res)->pRetensions);
+        taosMemoryFreeClear(pTask->res);
+      }
       break;
     }
     case CTG_TASK_GET_TB_HASH: {
       SCtgTbHashCtx* taskCtx = (SCtgTbHashCtx*)pTask->taskCtx;
       taosMemoryFreeClear(taskCtx->pName);
-      taosMemoryFree(pTask->res);
+      taosMemoryFreeClear(pTask->res);
+      break;
+    }
+    case CTG_TASK_GET_QNODE: {
+      taosArrayDestroy((SArray*)pTask->res);
+      pTask->res = NULL;
       break;
     }
     default:

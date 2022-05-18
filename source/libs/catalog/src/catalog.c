@@ -265,6 +265,8 @@ int32_t ctgGetTbMeta(CTG_PARAMS, SCtgTbMetaCtx* ctx, STableMeta** pTableMeta) {
 
     // HANDLE ONLY CHILD TABLE META
 
+    taosMemoryFreeClear(output->tbMeta);
+
     SName stbName = *ctx->pName;
     strcpy(stbName.tname, output->tbName);
     SCtgTbMetaCtx stbCtx = {0};
@@ -806,6 +808,34 @@ _return:
   CTG_API_LEAVE(code);
 }
 
+int32_t catalogChkTbMetaVersion(SCatalog* pCtg, void *pTrans, const SEpSet* pMgmtEps, SArray* pTables) {
+  CTG_API_ENTER();
+
+  if (NULL == pCtg || NULL == pTrans || NULL == pMgmtEps || NULL == pTables) {
+    CTG_API_LEAVE(TSDB_CODE_CTG_INVALID_INPUT);
+  }
+
+  SName name;
+  int32_t sver = 0;
+  int32_t tbNum = taosArrayGetSize(pTables);
+  for (int32_t i = 0; i < tbNum; ++i) {
+    STbSVersion* pTb = (STbSVersion*)taosArrayGet(pTables, i);
+    tNameFromString(&name, pTb->tbFName, T_NAME_ACCT | T_NAME_DB | T_NAME_TABLE);
+
+    if (CTG_IS_SYS_DBNAME(name.dbname)) {
+      continue;
+    }
+
+    ctgReadTbSverFromCache(pCtg, &name, &sver);
+    if (sver >= 0 && sver < pTb->sver) {
+      catalogRemoveTableMeta(pCtg, &name); //TODO REMOVE STB FROM CACHE
+    }
+  }
+
+  CTG_API_LEAVE(TSDB_CODE_SUCCESS);
+}
+
+
 int32_t catalogRefreshDBVgInfo(SCatalog* pCtg, void *pTrans, const SEpSet* pMgmtEps, const char* dbFName) {
   CTG_API_ENTER();
 
@@ -1065,7 +1095,7 @@ int32_t catalogGetIndexMeta(SCatalog* pCtg, void *pTrans, const SEpSet* pMgmtEps
   CTG_API_LEAVE(ctgGetIndexInfoFromMnode(CTG_PARAMS_LIST(), indexName, pInfo, NULL));
 }
 
-int32_t catalogGetUdfInfo(SCatalog* pCtg, void *pTrans, const SEpSet* pMgmtEps, const char* funcName, SFuncInfo** pInfo) {
+int32_t catalogGetUdfInfo(SCatalog* pCtg, void *pTrans, const SEpSet* pMgmtEps, const char* funcName, SFuncInfo* pInfo) {
   CTG_API_ENTER();
   
   if (NULL == pCtg || NULL == pTrans || NULL == pMgmtEps || NULL == funcName || NULL == pInfo) {
@@ -1073,18 +1103,9 @@ int32_t catalogGetUdfInfo(SCatalog* pCtg, void *pTrans, const SEpSet* pMgmtEps, 
   }
 
   int32_t code = 0;
-  *pInfo = taosMemoryMalloc(sizeof(SFuncInfo));
-  if (NULL == *pInfo) {
-    CTG_API_LEAVE(TSDB_CODE_OUT_OF_MEMORY);
-  }
-
   CTG_ERR_JRET(ctgGetUdfInfoFromMnode(CTG_PARAMS_LIST(), funcName, pInfo, NULL));
   
 _return:
-
-  if (code) {
-    taosMemoryFreeClear(*pInfo);    
-  }
   
   CTG_API_LEAVE(code);
 }

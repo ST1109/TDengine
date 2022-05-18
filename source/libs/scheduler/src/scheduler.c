@@ -1371,6 +1371,7 @@ int32_t schHandleCallback(void *param, const SDataBuf *pMsg, int32_t msgType, in
   SCH_ERR_JRET(schHandleResponseMsg(pJob, pTask, msgType, pMsg->pData, pMsg->len, rspCode));
 
 _return:
+  
   if (pJob) {
     schReleaseJob(pParam->refId);
   }
@@ -1414,24 +1415,25 @@ int32_t schHandleDropCallback(void *param, const SDataBuf *pMsg, int32_t code) {
 }
 
 int32_t schHandleHbCallback(void *param, const SDataBuf *pMsg, int32_t code) {
+  SSchTaskCallbackParam *pParam = (SSchTaskCallbackParam *)param;
+  SSchedulerHbRsp rsp = {0};
+
   if (code) {
     qError("hb rsp error:%s", tstrerror(code));
-    SCH_ERR_RET(code);
+    SCH_ERR_JRET(code);
   }
 
-  SSchedulerHbRsp rsp = {0};
   if (tDeserializeSSchedulerHbRsp(pMsg->pData, pMsg->len, &rsp)) {
     qError("invalid hb rsp msg, size:%d", pMsg->len);
-    SCH_ERR_RET(TSDB_CODE_QRY_INVALID_INPUT);
+    SCH_ERR_JRET(TSDB_CODE_QRY_INVALID_INPUT);
   }
 
-  SSchTaskCallbackParam *pParam = (SSchTaskCallbackParam *)param;
 
   SSchTrans trans = {0};
   trans.transInst = pParam->transport;
   trans.transHandle = pMsg->handle;
 
-  SCH_ERR_RET(schUpdateHbConnection(&rsp.epId, &trans));
+  SCH_ERR_JRET(schUpdateHbConnection(&rsp.epId, &trans));
 
   int32_t taskNum = (int32_t)taosArrayGetSize(rsp.taskStatus);
   qDebug("%d task status in hb rsp, nodeId:%d, fqdn:%s, port:%d", taskNum, rsp.epId.nodeId, rsp.epId.ep.fqdn,
@@ -1459,7 +1461,8 @@ int32_t schHandleHbCallback(void *param, const SDataBuf *pMsg, int32_t code) {
 _return:
 
   tFreeSSchedulerHbRsp(&rsp);
-
+  taosMemoryFree(param);
+  
   SCH_RET(code);
 }
 

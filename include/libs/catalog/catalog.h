@@ -46,11 +46,20 @@ typedef enum {
   AUTH_TYPE_OTHER,
 } AUTH_TYPE;
 
+typedef struct SUserAuthInfo {
+  char* user; 
+  char* dbFName; 
+  AUTH_TYPE type;
+} SUserAuthInfo;
+
 typedef struct SCatalogReq {
   SArray *pTableMeta;     // element is SNAME
-  SArray *pDb;            // element is db full name
+  SArray *pDbVgroup;      // element is db full name
   SArray *pTableHash;     // element is SNAME
-  SArray *pUdf;           // udf name
+  SArray *pUdf;           // element is udf name
+  SArray *pDbCfg;         // element is db full name
+  SArray *pIndex;         // element is index name
+  SArray *pUser;          // element is SUserAuthInfo
   bool    qNodeRequired;  // valid qnode
 } SCatalogReq;
 
@@ -58,8 +67,11 @@ typedef struct SMetaData {
   SArray    *pTableMeta;  // SArray<STableMeta>
   SArray    *pDbVgroup;   // SArray<SArray*>
   SArray    *pTableHash;  // SArray<SVgroupInfo>
-  SArray    *pUdfList;    // udf info list
-  SArray    *pQnodeList;  // qnode list, SArray<SQueryNodeAddr>
+  SArray    *pUdfList;    // SArray<SFuncInfo>
+  SArray    *pDbCfg;      // SArray<SDbCfgInfo>
+  SArray    *pIndex;      // SArray<SIndexInfo>
+  SArray    *pUser;       // SArray<bool>
+  SArray    *pQnodeList;  // SArray<SQueryNodeAddr>
 } SMetaData;
 
 typedef struct SCatalogCfg {
@@ -85,6 +97,11 @@ typedef struct SDbVgVersion {
   int32_t vgVersion;
   int32_t numOfTable; // unit is TSDB_TABLE_NUM_UNIT
 } SDbVgVersion;
+
+typedef struct STbSVersion {
+  char* tbFName;
+  int32_t sver;
+} STbSVersion;
 
 typedef struct SUserAuthVersion {
   char    user[TSDB_USER_LEN];
@@ -170,6 +187,8 @@ int32_t catalogUpdateSTableMeta(SCatalog* pCatalog, STableMetaRsp *rspMsg);
  */
 int32_t catalogRefreshDBVgInfo(SCatalog* pCtg, void *pTrans, const SEpSet* pMgmtEps, const char* dbFName);
 
+int32_t catalogChkTbMetaVersion(SCatalog* pCtg, void *pTrans, const SEpSet* pMgmtEps, SArray* pTables);
+
 /**
  * Force refresh a table's local cached meta data. 
  * @param pCatalog (input, got with catalogGetHandle)
@@ -241,7 +260,7 @@ int32_t catalogGetDBCfg(SCatalog* pCtg, void *pRpc, const SEpSet* pMgmtEps, cons
 
 int32_t catalogGetIndexMeta(SCatalog* pCtg, void *pRpc, const SEpSet* pMgmtEps, const char* indexName, SIndexInfo* pInfo);
 
-int32_t catalogGetUdfInfo(SCatalog* pCtg, void *pRpc, const SEpSet* pMgmtEps, const char* funcName, SFuncInfo** pInfo);
+int32_t catalogGetUdfInfo(SCatalog* pCtg, void *pRpc, const SEpSet* pMgmtEps, const char* funcName, SFuncInfo* pInfo);
 
 int32_t catalogChkAuth(SCatalog* pCtg, void *pRpc, const SEpSet* pMgmtEps, const char* user, const char* dbFName, AUTH_TYPE type, bool *pass);
 

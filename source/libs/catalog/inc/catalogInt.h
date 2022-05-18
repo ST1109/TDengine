@@ -59,9 +59,14 @@ enum {
 };
 
 typedef enum {
-  CTG_TASK_GET_TB_META = 0,
+  CTG_TASK_GET_QNODE = 0,
   CTG_TASK_GET_DB_VGROUP,
+  CTG_TASK_GET_DB_CFG,
+  CTG_TASK_GET_TB_META,
   CTG_TASK_GET_TB_HASH,
+  CTG_TASK_GET_INDEX,
+  CTG_TASK_GET_UDF,
+  CTG_TASK_GET_USER,
 } CTG_TASK_TYPE;
 
 typedef struct SCtgDebug {
@@ -88,6 +93,10 @@ typedef struct SCtgTbMetaCtx {
 typedef struct SCtgDbVgCtx {
   char dbFName[TSDB_DB_FNAME_LEN];
 } SCtgDbVgCtx;
+
+typedef struct SCtgDbCfgCtx {
+  char dbFName[TSDB_DB_FNAME_LEN];
+} SCtgDbCfgCtx;
 
 typedef struct SCtgTbHashCtx {
   char dbFName[TSDB_DB_FNAME_LEN];
@@ -151,12 +160,16 @@ typedef struct SCtgJob {
   SCatalog*        pCtg; 
   void*            pTrans; 
   const SEpSet*    pMgmtEps;
-  int32_t          tbMetaNum;
-  int32_t          tbHashNum;
-  int32_t          dbNum;
-  int32_t          udfNum;
   void*            userParam;
   catalogCallback  userFp;
+  int32_t          tbMetaNum;
+  int32_t          tbHashNum;
+  int32_t          dbVgNum;
+  int32_t          udfNum;
+  int32_t          qnodeNum;
+  int32_t          dbCfgNum;
+  int32_t          indexNum;
+  int32_t          userNum;
 } SCtgJob;
 
 typedef struct SCtgMsgCtx {
@@ -203,6 +216,7 @@ typedef struct SCtgCacheStat {
   uint64_t dbNum;
   uint64_t tblNum;
   uint64_t stblNum;
+  uint64_t userNum;
   uint64_t vgHitNum;
   uint64_t vgMissNum;
   uint64_t tblHitNum;
