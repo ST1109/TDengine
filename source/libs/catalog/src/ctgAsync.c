@@ -42,6 +42,8 @@ int32_t ctgInitGetTbMetaTask(SCtgJob *pJob, int32_t taskIdx, SName *name) {
   memcpy(ctx->pName, name, sizeof(*name));
   ctx->flag = CTG_FLAG_UNKNOWN_STB;
 
+  qDebug("QID:%" PRIx64 " task %d type %d initialized, tableName:%s", pJob->queryId, taskIdx, pTask->type, name->tname);
+
   return TSDB_CODE_SUCCESS;
 }
 
@@ -61,6 +63,8 @@ int32_t ctgInitGetDbVgTask(SCtgJob *pJob, int32_t taskIdx, char *dbFName) {
   
   memcpy(ctx->dbFName, dbFName, sizeof(ctx->dbFName));
 
+  qDebug("QID:%" PRIx64 " task %d type %d initialized, dbFName:%s", pJob->queryId, taskIdx, pTask->type, dbFName);
+
   return TSDB_CODE_SUCCESS;
 }
 
@@ -79,6 +83,8 @@ int32_t ctgInitGetDbCfgTask(SCtgJob *pJob, int32_t taskIdx, char *dbFName) {
   SCtgDbCfgCtx* ctx = pTask->taskCtx;
   
   memcpy(ctx->dbFName, dbFName, sizeof(ctx->dbFName));
+
+  qDebug("QID:%" PRIx64 " task %d type %d initialized, dbFName:%s", pJob->queryId, taskIdx, pTask->type, dbFName);
 
   return TSDB_CODE_SUCCESS;
 }
@@ -105,6 +111,8 @@ int32_t ctgInitGetTbHashTask(SCtgJob *pJob, int32_t taskIdx, SName *name) {
   memcpy(ctx->pName, name, sizeof(*name));
   tNameGetFullDbName(ctx->pName, ctx->dbFName);
 
+  qDebug("QID:%" PRIx64 " task %d type %d initialized, tableName:%s", pJob->queryId, taskIdx, pTask->type, name->tname);
+
   return TSDB_CODE_SUCCESS;
 }
 
@@ -115,6 +123,8 @@ int32_t ctgInitGetQnodeTask(SCtgJob *pJob, int32_t taskIdx) {
   pTask->taskId = taskIdx;
   pTask->pJob = pJob;
   pTask->taskCtx = NULL;
+
+  qDebug("QID:%" PRIx64 " task %d type %d initialized", pJob->queryId, taskIdx, pTask->type);
 
   return TSDB_CODE_SUCCESS;
 }
@@ -135,6 +145,8 @@ int32_t ctgInitGetIndexTask(SCtgJob *pJob, int32_t taskIdx, char *name) {
   
   strcpy(ctx->indexFName, name);
 
+  qDebug("QID:%" PRIx64 " task %d type %d initialized, indexFName:%s", pJob->queryId, taskIdx, pTask->type, name);
+
   return TSDB_CODE_SUCCESS;
 }
 
@@ -154,6 +166,8 @@ int32_t ctgInitGetUdfTask(SCtgJob *pJob, int32_t taskIdx, char *name) {
   
   strcpy(ctx->udfName, name);
 
+  qDebug("QID:%" PRIx64 " task %d type %d initialized, udfName:%s", pJob->queryId, taskIdx, pTask->type, name);
+
   return TSDB_CODE_SUCCESS;
 }
 
@@ -172,6 +186,8 @@ int32_t ctgInitGetUserTask(SCtgJob *pJob, int32_t taskIdx, SUserAuthInfo *user) 
   SCtgUserCtx* ctx = pTask->taskCtx;
   
   memcpy(&ctx->user, user, sizeof(*user));
+
+  qDebug("QID:%" PRIx64 " task %d type %d initialized, user:%s", pJob->queryId, taskIdx, pTask->type, user->user);
 
   return TSDB_CODE_SUCCESS;
 }
@@ -272,6 +288,8 @@ int32_t ctgInitJob(CTG_PARAMS, SCtgJob** job, uint64_t reqId, const SCatalogReq*
   }
 
   taosAcquireRef(gCtgMgmt.jobPool, pJob->refId);
+
+  qDebug("QID:%" PRIx64 ", job %" PRIx64 " initialized, task num %d", pJob->queryId, pJob->refId, taskNum);
 
   return TSDB_CODE_SUCCESS;
 
@@ -395,6 +413,8 @@ int32_t ctgHandleTaskEnd(SCtgTask* pTask, int32_t rspCode) {
   SCtgJob* pJob = pTask->pJob;
   int32_t code = 0;
 
+  qDebug("QID:%" PRIx64 " task %d end with rsp %s", pJob->queryId, pTask->taskId, tstrerror(rspCode));
+
   if (rspCode) {
     int32_t lastCode = atomic_val_compare_exchange_32(&pJob->rspCode, 0, rspCode);
     if (0 == lastCode) {
@@ -413,6 +433,8 @@ int32_t ctgHandleTaskEnd(SCtgTask* pTask, int32_t rspCode) {
   CTG_ERR_JRET(ctgMakeAsyncRes(pJob));
 
 _return:
+
+  qDebug("QID:%" PRIx64 " user callback with rsp %s", pJob->queryId, tstrerror(code));
 
   (*pJob->userFp)(&pJob->jobRes, pJob->userParam, code);
 
@@ -982,6 +1004,7 @@ int32_t ctgLaunchJob(SCtgJob *pJob) {
   for (int32_t i = 0; i < taskNum; ++i) {
     SCtgTask *pTask = taosArrayGet(pJob->pTasks, i);
 
+    qDebug("QID:%" PRIx64 " start to launch task %d", pJob->queryId, pTask->taskId); 
     CTG_ERR_RET((*gCtgAsyncFps[pTask->type].launchFp)(pTask));
   }
 

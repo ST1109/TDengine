@@ -182,6 +182,8 @@ int32_t ctgHandleMsgCallback(void *param, const SDataBuf *pMsg, int32_t rspCode)
 
   SCtgTask *pTask = taosArrayGet(pJob->pTasks, cbParam->taskId);
 
+  qDebug("QID:%" PRIx64 " task %d start to handle rsp %s", pJob->queryId, pTask->taskId, TMSG_INFO(cbParam->reqType + 1));
+  
   CTG_ERR_JRET((*gCtgAsyncFps[pTask->type].handleRspFp)(pTask, cbParam->reqType, pMsg, rspCode));
  
 _return:

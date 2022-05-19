@@ -340,11 +340,16 @@ void ctgFreeJob(void* job) {
   
   SCtgJob* pJob = (SCtgJob*)job;
 
+  int64_t rid = pJob->refId;
+  uint64_t qid = pJob->queryId;
+
   ctgFreeTasks(pJob->pTasks);
 
   ctgFreeSMetaData(&pJob->jobRes);
 
   taosMemoryFree(job);
+
+  qDebug("QID:%" PRIx64 ", job %" PRIx64 " freed", qid, rid);
 }
 
 int32_t ctgUpdateMsgCtx(SCtgMsgCtx* pCtx, int32_t reqType, void* out, char* target) {
