@@ -103,6 +103,18 @@ typedef struct SCtgTbHashCtx {
   SName* pName;
 } SCtgTbHashCtx;
 
+typedef struct SCtgIndexCtx {
+  char indexFName[TSDB_INDEX_FNAME_LEN];
+} SCtgIndexCtx;
+
+typedef struct SCtgUdfCtx {
+  char udfName[TSDB_FUNC_NAME_LEN];
+} SCtgUdfCtx;
+
+typedef struct SCtgUserCtx {
+  SUserAuthInfo user;
+} SCtgUserCtx;
+
 typedef struct SCtgTbMetaCache {
   SRWLatch  stbLock;
   SRWLatch  metaLock;        // RC between cache destroy and all other operations
@@ -435,6 +447,7 @@ void ctgReleaseVgInfo(SCtgDBCache *dbCache);
 int32_t ctgAcquireVgInfoFromCache(SCatalog* pCtg, const char *dbFName, SCtgDBCache **pCache);
 int32_t ctgTbMetaExistInCache(SCatalog* pCtg, char *dbFName, char* tbName, int32_t *exist);
 int32_t ctgReadTbMetaFromCache(SCatalog* pCtg, SCtgTbMetaCtx* ctx, STableMeta** pTableMeta);
+int32_t ctgReadTbSverFromCache(SCatalog* pCtg, const SName* pTableName, int32_t* sver);
 int32_t ctgChkAuthFromCache(SCatalog* pCtg, const char* user, const char* dbFName, AUTH_TYPE type, bool *inCache, bool *pass);
 int32_t ctgPutRmDBToQueue(SCatalog* pCtg, const char *dbFName, int64_t dbId);
 int32_t ctgPutRmStbToQueue(SCatalog* pCtg, const char *dbFName, int64_t dbId, const char *stbName, uint64_t suid, bool syncReq);
@@ -456,7 +469,7 @@ int32_t ctgGetDBVgInfoFromMnode(CTG_PARAMS, SBuildUseDBInput *input, SUseDbOutpu
 int32_t ctgGetQnodeListFromMnode(CTG_PARAMS, SArray *out, SCtgTask* pTask);
 int32_t ctgGetDBCfgFromMnode(CTG_PARAMS, const char *dbFName, SDbCfgInfo *out, SCtgTask* pTask);
 int32_t ctgGetIndexInfoFromMnode(CTG_PARAMS, const char *indexName, SIndexInfo *out, SCtgTask* pTask);
-int32_t ctgGetUdfInfoFromMnode(CTG_PARAMS, const char *funcName, SFuncInfo **out, SCtgTask* pTask);
+int32_t ctgGetUdfInfoFromMnode(CTG_PARAMS, const char *funcName, SFuncInfo *out, SCtgTask* pTask);
 int32_t ctgGetUserDbAuthFromMnode(CTG_PARAMS, const char *user, SGetUserAuthRsp *out, SCtgTask* pTask);
 int32_t ctgGetTbMetaFromMnodeImpl(CTG_PARAMS, char *dbFName, char* tbName, STableMetaOutput* out, SCtgTask* pTask);
 int32_t ctgGetTbMetaFromMnode(CTG_PARAMS, const SName* pTableName, STableMetaOutput* out, SCtgTask* pTask);

@@ -22,8 +22,35 @@
 void ctgFreeSMetaData(SMetaData* pData) {
   taosArrayDestroy(pData->pTableMeta);
   pData->pTableMeta = NULL;
+  
+  for (int32_t i = 0; i < taosArrayGetSize(pData->pDbVgroup); ++i) {
+    SArray** pArray = taosArrayGet(pData->pDbVgroup, i);
+    taosArrayDestroy(*pArray);
+  }
+  taosArrayDestroy(pData->pDbVgroup);
+  pData->pDbVgroup = NULL;
+  
+  taosArrayDestroy(pData->pTableHash);
+  pData->pTableHash = NULL;
+  
   taosArrayDestroy(pData->pUdfList);
   pData->pUdfList = NULL;
+  
+  for (int32_t i = 0; i < taosArrayGetSize(pData->pDbCfg); ++i) {
+    SDbCfgInfo* pInfo = taosArrayGet(pData->pDbCfg, i);
+    taosArrayDestroy(pInfo->pRetensions);
+  }
+  taosArrayDestroy(pData->pDbCfg);
+  pData->pDbCfg = NULL;
+  
+  taosArrayDestroy(pData->pIndex);
+  pData->pIndex = NULL;
+  
+  taosArrayDestroy(pData->pUser);
+  pData->pUser = NULL;
+  
+  taosArrayDestroy(pData->pQnodeList);
+  pData->pQnodeList = NULL;
 }
 
 void ctgFreeSCtgUserAuth(SCtgUserAuth *userCache) {
@@ -198,6 +225,7 @@ void ctgFreeMsgCtx(SCtgMsgCtx* pCtx) {
       taosHashCleanup(pOut->createdDbs);
       taosHashCleanup(pOut->readDbs);
       taosHashCleanup(pOut->writeDbs);
+      taosMemoryFreeClear(pCtx->out);
       break;
     }
     default:
@@ -237,6 +265,11 @@ void ctgFreeTask(SCtgTask* pTask) {
   ctgFreeMsgCtx(&pTask->msgCtx);
   
   switch (pTask->type) {
+    case CTG_TASK_GET_QNODE: {
+      taosArrayDestroy((SArray*)pTask->res);
+      pTask->res = NULL;
+      break;
+    }
     case CTG_TASK_GET_TB_META: {
       SCtgTbMetaCtx* taskCtx = (SCtgTbMetaCtx*)pTask->taskCtx;
       taosMemoryFreeClear(taskCtx->pName);
@@ -265,9 +298,19 @@ void ctgFreeTask(SCtgTask* pTask) {
       taosMemoryFreeClear(pTask->res);
       break;
     }
-    case CTG_TASK_GET_QNODE: {
-      taosArrayDestroy((SArray*)pTask->res);
-      pTask->res = NULL;
+    case CTG_TASK_GET_INDEX: {
+      taosMemoryFreeClear(pTask->taskCtx);
+      taosMemoryFreeClear(pTask->res);
+      break;
+    }
+    case CTG_TASK_GET_UDF: {
+      taosMemoryFreeClear(pTask->taskCtx);
+      taosMemoryFreeClear(pTask->res);
+      break;
+    }
+    case CTG_TASK_GET_USER: {
+      taosMemoryFreeClear(pTask->taskCtx);
+      taosMemoryFreeClear(pTask->res);
       break;
     }
     default:
@@ -298,6 +341,8 @@ void ctgFreeJob(void* job) {
   SCtgJob* pJob = (SCtgJob*)job;
 
   ctgFreeTasks(pJob->pTasks);
+
+  ctgFreeSMetaData(&pJob->jobRes);
 
   taosMemoryFree(job);
 }

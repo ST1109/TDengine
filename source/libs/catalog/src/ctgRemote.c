@@ -186,6 +186,10 @@ int32_t ctgHandleMsgCallback(void *param, const SDataBuf *pMsg, int32_t rspCode)
  
 _return:
 
+  if (pJob) {
+    taosReleaseRef(gCtgMgmt.jobPool, cbParam->refId);
+  }
+  
   taosMemoryFree(param);
 
   CTG_API_LEAVE(code);

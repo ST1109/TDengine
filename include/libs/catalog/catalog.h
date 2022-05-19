@@ -47,8 +47,8 @@ typedef enum {
 } AUTH_TYPE;
 
 typedef struct SUserAuthInfo {
-  char* user; 
-  char* dbFName; 
+  char user[TSDB_USER_LEN]; 
+  char dbFName[TSDB_DB_FNAME_LEN]; 
   AUTH_TYPE type;
 } SUserAuthInfo;
 
@@ -65,7 +65,7 @@ typedef struct SCatalogReq {
 
 typedef struct SMetaData {
   SArray    *pTableMeta;  // SArray<STableMeta>
-  SArray    *pDbVgroup;   // SArray<SArray*>
+  SArray    *pDbVgroup;   // SArray<SArray<SVgroupInfo>*>
   SArray    *pTableHash;  // SArray<SVgroupInfo>
   SArray    *pUdfList;    // SArray<SFuncInfo>
   SArray    *pDbCfg;      // SArray<SDbCfgInfo>
