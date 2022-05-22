@@ -50,6 +50,7 @@ class TDSql:
 
     def prepare(self):
         tdLog.info("prepare database:db")
+        time.sleep(10)
         s = 'reset query cache'
         try:
             self.cursor.execute(s)

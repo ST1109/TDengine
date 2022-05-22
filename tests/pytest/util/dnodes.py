@@ -261,8 +261,8 @@ class TDDnode:
             tdLog.exit("dnode:%d is not deployed" % (self.index))
 
         if self.valgrind == 0:
-            cmd = "nohup %s -c %s > /dev/null 2>&1 & " % (
-                binPath, self.cfgDir)
+            #cmd = "nohup %s -c %s > /dev/null 2>&1 & " % ( binPath, self.cfgDir)
+            cmd = "nohup %s -c %s > %s/../log/sanitizer.log 2>&1 & " % ( binPath, self.cfgDir, self.cfgDir)
         else:
             valgrindCmdline = "valgrind --log-file=\"valgrind.log\"  --tool=memcheck --leak-check=full --show-reachable=no --track-origins=yes --show-leak-kinds=all -v --workaround-gcc296-bugs=yes"
 
@@ -276,32 +276,32 @@ class TDDnode:
         self.running = 1
         tdLog.debug("dnode:%d is running with %s " % (self.index, cmd))
         if self.valgrind == 0:
-            time.sleep(0.1)
-            key = 'from offline to online'
-            bkey = bytes(key, encoding="utf8")
-            logFile = self.logDir + "/taosdlog.0"
-            i = 0
-            while not os.path.exists(logFile):
-                sleep(0.1)
-                i += 1
-                if i > 50:
-                    break
-            popen = subprocess.Popen(
-                'tail -f ' + logFile,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                shell=True)
-            pid = popen.pid
-            # print('Popen.pid:' + str(pid))
-            timeout = time.time() + 60 * 2
-            while True:
-                line = popen.stdout.readline().strip()
-                if bkey in line:
-                    popen.kill()
-                    break
-                if time.time() > timeout:
-                    tdLog.exit('wait too long for taosd start')
-            tdLog.debug("the dnode:%d has been started." % (self.index))
+            time.sleep(12)
+            #key = 'from offline to online'
+            #bkey = bytes(key, encoding="utf8")
+            #logFile = self.logDir + "/taosdlog.0"
+            #i = 0
+            #while not os.path.exists(logFile):
+            #    sleep(0.1)
+            #    i += 1
+            #    if i > 50:
+            #        break
+            #popen = subprocess.Popen(
+            #    'tail -f ' + logFile,
+            #    stdout=subprocess.PIPE,
+            #    stderr=subprocess.PIPE,
+            #    shell=True)
+            #pid = popen.pid
+            ## print('Popen.pid:' + str(pid))
+            #timeout = time.time() + 60 * 2
+            #while True:
+            #    line = popen.stdout.readline().strip()
+            #    if bkey in line:
+            #        popen.kill()
+            #        break
+            #    if time.time() > timeout:
+            #        tdLog.exit('wait too long for taosd start')
+            #tdLog.debug("the dnode:%d has been started." % (self.index))
         else:
             tdLog.debug(
                 "wait 10 seconds for the dnode:%d to start." %
@@ -322,8 +322,8 @@ class TDDnode:
             tdLog.exit("dnode:%d is not deployed" % (self.index))
 
         if self.valgrind == 0:
-            cmd = "nohup %s -c %s > /dev/null 2>&1 & " % (
-                binPath, self.cfgDir)
+            #cmd = "nohup %s -c %s > /dev/null 2>&1 & " % (binPath, self.cfgDir)
+            cmd = "nohup %s -c %s > %s/../log/sanitizer.log 2>&1 & " % (binPath, self.cfgDir, self.cfgDir)
         else:
             valgrindCmdline = "valgrind  --log-file=\"valgrind.log\"  --tool=memcheck --leak-check=full --show-reachable=no --track-origins=yes --show-leak-kinds=all -v --workaround-gcc296-bugs=yes"
 
@@ -338,30 +338,30 @@ class TDDnode:
         tdLog.debug("dnode:%d is running with %s " % (self.index, cmd))
 
     def stop(self):
-        if self.valgrind == 0:
-            toBeKilled = "taosd"
-        else:
-            toBeKilled = "valgrind.bin"
+        #if self.valgrind == 0:
+        #    toBeKilled = "taosd"
+        #else:
+        #    toBeKilled = "valgrind.bin"
 
-        if self.running != 0:
-            psCmd = "ps -ef|grep -w %s| grep -v grep | awk '{print $2}'" % toBeKilled
-            processID = subprocess.check_output(
-                psCmd, shell=True).decode("utf-8")
+        #if self.running != 0:
+        #    psCmd = "ps -ef|grep -w %s| grep -v grep | awk '{print $2}'" % toBeKilled
+        #    processID = subprocess.check_output(
+        #        psCmd, shell=True).decode("utf-8")
 
-            while(processID):
-                killCmd = "kill -INT %s > /dev/null 2>&1" % processID
-                os.system(killCmd)
-                time.sleep(1)
-                processID = subprocess.check_output(
-                    psCmd, shell=True).decode("utf-8")
-            for port in range(6030, 6041):
-                fuserCmd = "fuser -k -n tcp %d" % port
-                os.system(fuserCmd)
-            if self.valgrind:
-                time.sleep(2)
+         #   while(processID):
+         #       killCmd = "kill -INT %s > /dev/null 2>&1" % processID
+         #       os.system(killCmd)
+         #       time.sleep(1)
+         #       processID = subprocess.check_output(
+         #           psCmd, shell=True).decode("utf-8")
+         #   for port in range(6030, 6041):
+         #       fuserCmd = "fuser -k -n tcp %d" % port
+         #       os.system(fuserCmd)
+         #   if self.valgrind:
+         #       time.sleep(2)
 
-            self.running = 0
-            tdLog.debug("dnode:%d is stopped by kill -INT" % (self.index))
+        self.running = 0
+        tdLog.debug("dnode:%d is stopped by kill -INT" % (self.index))
 
     def forcestop(self):
         if self.valgrind == 0:
@@ -430,23 +430,23 @@ class TDDnodes:
         self.simDeployed = False
 
     def init(self, path):
-        psCmd = "ps -ef|grep -w taosd| grep -v grep| grep -v defunct | awk '{print $2}'"
-        processID = subprocess.check_output(psCmd, shell=True).decode("utf-8")
-        while(processID):
-            killCmd = "kill -9 %s > /dev/null 2>&1" % processID
-            os.system(killCmd)
-            time.sleep(1)
-            processID = subprocess.check_output(
-                psCmd, shell=True).decode("utf-8")
+        #psCmd = "ps -ef|grep -w taosd| grep -v grep| grep -v defunct | awk '{print $2}'"
+        #processID = subprocess.check_output(psCmd, shell=True).decode("utf-8")
+        #while(processID):
+        #    killCmd = "kill -9 %s > /dev/null 2>&1" % processID
+        #    os.system(killCmd)
+        #    time.sleep(1)
+        #    processID = subprocess.check_output(
+        #        psCmd, shell=True).decode("utf-8")
 
-        psCmd = "ps -ef|grep -w valgrind.bin| grep -v grep | awk '{print $2}'"
-        processID = subprocess.check_output(psCmd, shell=True).decode("utf-8")
-        while(processID):
-            killCmd = "kill -9 %s > /dev/null 2>&1" % processID
-            os.system(killCmd)
-            time.sleep(1)
-            processID = subprocess.check_output(
-                psCmd, shell=True).decode("utf-8")
+        #psCmd = "ps -ef|grep -w valgrind.bin| grep -v grep | awk '{print $2}'"
+        #processID = subprocess.check_output(psCmd, shell=True).decode("utf-8")
+        #while(processID):
+        #    killCmd = "kill -9 %s > /dev/null 2>&1" % processID
+        #    os.system(killCmd)
+        #    time.sleep(1)
+        #    processID = subprocess.check_output(
+        #        psCmd, shell=True).decode("utf-8")
 
         binPath = self.dnodes[0].getPath() + "/../../../"
         tdLog.debug("binPath %s" % (binPath))
@@ -538,36 +538,36 @@ class TDDnodes:
 
     def stopAll(self):
         tdLog.info("stop all dnodes")
-        for i in range(len(self.dnodes)):
-            self.dnodes[i].stop()
+        #for i in range(len(self.dnodes)):
+        #    self.dnodes[i].stop()
 
-        psCmd = "ps -ef | grep -w taosd | grep 'root' | grep -v grep| grep -v defunct | awk '{print $2}'"
-        processID = subprocess.check_output(psCmd, shell=True).decode("utf-8")
-        if processID:
-            cmd = "sudo systemctl stop taosd"
-            os.system(cmd)
-        # if os.system(cmd) != 0 :
-        # tdLog.exit(cmd)
-        psCmd = "ps -ef|grep -w taosd| grep -v grep| grep -v defunct | awk '{print $2}'"
-        processID = subprocess.check_output(psCmd, shell=True).decode("utf-8")
-        while(processID):
-            killCmd = "kill -9 %s > /dev/null 2>&1" % processID
-            os.system(killCmd)
-            time.sleep(1)
-            processID = subprocess.check_output(
-                psCmd, shell=True).decode("utf-8")
+        #psCmd = "ps -ef | grep -w taosd | grep 'root' | grep -v grep| grep -v defunct | awk '{print $2}'"
+        #processID = subprocess.check_output(psCmd, shell=True).decode("utf-8")
+        #if processID:
+        #    cmd = "sudo systemctl stop taosd"
+        #    os.system(cmd)
+        ## if os.system(cmd) != 0 :
+        ## tdLog.exit(cmd)
+        #psCmd = "ps -ef|grep -w taosd| grep -v grep| grep -v defunct | awk '{print $2}'"
+        #processID = subprocess.check_output(psCmd, shell=True).decode("utf-8")
+        #while(processID):
+        #    killCmd = "kill -9 %s > /dev/null 2>&1" % processID
+        #    os.system(killCmd)
+        #    time.sleep(1)
+        #    processID = subprocess.check_output(
+        #        psCmd, shell=True).decode("utf-8")
 
-        psCmd = "ps -ef|grep -w valgrind.bin| grep -v grep | awk '{print $2}'"
-        processID = subprocess.check_output(psCmd, shell=True).decode("utf-8")
-        while(processID):
-            killCmd = "kill -TERM %s > /dev/null 2>&1" % processID
-            os.system(killCmd)
-            time.sleep(1)
-            processID = subprocess.check_output(
-                psCmd, shell=True).decode("utf-8")
+        #psCmd = "ps -ef|grep -w valgrind.bin| grep -v grep | awk '{print $2}'"
+        #processID = subprocess.check_output(psCmd, shell=True).decode("utf-8")
+        #while(processID):
+        #    killCmd = "kill -TERM %s > /dev/null 2>&1" % processID
+        #    os.system(killCmd)
+        #    time.sleep(1)
+        #    processID = subprocess.check_output(
+        #        psCmd, shell=True).decode("utf-8")
 
-        # if os.system(cmd) != 0 :
-        # tdLog.exit(cmd)
+        ## if os.system(cmd) != 0 :
+        ## tdLog.exit(cmd)
 
     def getDnodesRootDir(self):
         dnodesRootDir = "%s/sim" % (self.path)
