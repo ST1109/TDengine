@@ -68,7 +68,7 @@ int32_t logStoreAppendEntry(SSyncLogStore* pLogStore, SSyncRaftEntry* pEntry) {
   }
   // assert(code == 0);
 
-  walFsync(pWal, true);
+  //walFsync(pWal, true);
   return code;
 }
 
