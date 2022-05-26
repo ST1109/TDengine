@@ -1019,6 +1019,8 @@ static int32_t mndTransExecuteActions(SMnode *pMnode, STrans *pTrans, SArray *pA
       numOfReceived++;
       if (pAction->errCode != 0 && pAction->errCode != pAction->acceptableCode) {
         errCode = pAction->errCode;
+        mError("trans:%d, action[%d:%d] msgType: %d, errCode: %d \n", pTrans->id, numOfActions, action,
+               (int32_t)pAction->msgType, pAction->errCode & 0XFFFF);
       }
     }
   }

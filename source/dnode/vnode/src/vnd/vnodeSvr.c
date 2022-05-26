@@ -231,7 +231,7 @@ int vnodeProcessFetchMsg(SVnode *pVnode, SRpcMsg *pMsg, SQueueInfo *pInfo) {
     case TDMT_VND_QUERY_HEARTBEAT:
       return qWorkerProcessHbMsg(pVnode, pVnode->pQuery, pMsg);
     default:
-      vError("unknown msg type:%d in fetch queue", pMsg->msgType);
+      vError("vgId:%d unknown msg type:%d in fetch queue", TD_VID(pVnode), pMsg->msgType);
       return TSDB_CODE_VND_APP_ERROR;
   }
 }
