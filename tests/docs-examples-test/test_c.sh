@@ -47,4 +47,3 @@ gcc -o telnet_line_example telnet_line_example.c -ltaos
 taos -s "drop database if exists test"
 gcc -o json_protocol_example json_protocol_example.c -ltaos
 ./json_protocol_example 
-
