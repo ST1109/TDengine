@@ -29,6 +29,33 @@ class TDTestCase:
         self.wait_stream_res(sql1, expected_count)
         self.check_query_data(sql1, sql2)
 
+    def check_stream_field_type(self, sql, input_function):
+        res = tdSql.query(sql, True)
+        if input_function in ["acos", "asin", "atan", "cos", "log", "pow", "sin", "sqrt", "tan"]:
+            tdSql.checkEqual(res[1][1], "DOUBLE")
+            tdSql.checkEqual(res[2][1], "DOUBLE")
+        elif input_function in ["lower", "ltrim", "rtrim", "upper"]:
+            tdSql.checkEqual(res[1][1], "VARCHAR")
+            tdSql.checkEqual(res[2][1], "VARCHAR")
+            tdSql.checkEqual(res[3][1], "NCHAR")
+        elif input_function in ["char_length", "length"]:
+            tdSql.checkEqual(res[1][1], "BIGINT")
+            tdSql.checkEqual(res[2][1], "BIGINT")
+            tdSql.checkEqual(res[3][1], "BIGINT")
+        elif input_function in ["concat", "concat_ws"]:
+            tdSql.checkEqual(res[1][1], "VARCHAR")
+            tdSql.checkEqual(res[2][1], "NCHAR")
+            tdSql.checkEqual(res[3][1], "NCHAR")
+            tdSql.checkEqual(res[4][1], "NCHAR")
+        elif input_function in ["substr"]:
+            tdSql.checkEqual(res[1][1], "VARCHAR")
+            tdSql.checkEqual(res[2][1], "VARCHAR")
+            tdSql.checkEqual(res[3][1], "VARCHAR")
+            tdSql.checkEqual(res[4][1], "NCHAR")
+        else:
+            tdSql.checkEqual(res[1][1], "INT")
+            tdSql.checkEqual(res[2][1], "DOUBLE")
+
     def run(self):
         tdSql.execute('drop database if exists mcrwymeqhz')
         tdSql.execute('create database if not exists mcrwymeqhz vgroups 1')
@@ -48,6 +75,9 @@ class TDTestCase:
                 tdSql.execute(f'create stream stb_{math_function}_stream into output_{math_function}_stb as select ts, {math_function}(c1), {math_function}(c2), c3 from scalar_stb;')
                 tdSql.execute(f'create stream ctb_{math_function}_stream into output_{math_function}_ctb as select ts, {math_function}(c1), {math_function}(c2), c3 from scalar_ct1;')
                 tdSql.execute(f'create stream tb_{math_function}_stream into output_{math_function}_tb as select ts, {math_function}(c1), {math_function}(c2), c3 from scalar_tb;')
+            self.check_stream_field_type(f"describe output_{math_function}_stb", math_function)
+            self.check_stream_field_type(f"describe output_{math_function}_ctb", math_function)
+            self.check_stream_field_type(f"describe output_{math_function}_tb", math_function)
         for string_function in string_function_list:
             if string_function == "concat":
                 tdSql.execute(f'create stream stb_{string_function}_stream into output_{string_function}_stb as select ts, {string_function}(c3, c4), {string_function}(c3, c5), {string_function}(c4, c5), {string_function}(c3, c4, c5) from scalar_stb;')
@@ -65,8 +95,10 @@ class TDTestCase:
                 tdSql.execute(f'create stream stb_{string_function}_stream into output_{string_function}_stb as select ts, {string_function}(c3), {string_function}(c4), {string_function}(c5) from scalar_stb;')
                 tdSql.execute(f'create stream ctb_{string_function}_stream into output_{string_function}_ctb as select ts, {string_function}(c3), {string_function}(c4), {string_function}(c5) from scalar_ct1;')
                 tdSql.execute(f'create stream tb_{string_function}_stream into output_{string_function}_tb as select ts, {string_function}(c3), {string_function}(c4), {string_function}(c5) from scalar_tb;')
+            self.check_stream_field_type(f"describe output_{string_function}_stb", string_function)
+            self.check_stream_field_type(f"describe output_{string_function}_ctb", string_function)
+            self.check_stream_field_type(f"describe output_{string_function}_tb", string_function)
         date_time = 1653547828591
-       
         count = 1
         step_count = 1
         for i in range(1, 20):
