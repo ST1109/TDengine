@@ -46,7 +46,6 @@ void *cancelHandler(void *arg) {
     exit(0);
 #endif
   }
-  
   return NULL;
 }
 
@@ -71,14 +70,15 @@ int checkVersion() {
 }
 
 // Global configurations
-SShellArguments args = {
-  .host = NULL,
+SShellArguments args = {.host = NULL,
 #ifndef TD_WINDOWS
   .password = NULL,
 #endif
   .user = NULL,
   .database = NULL,
   .timezone = NULL,
+  .restful = false,
+  .token = NULL,
   .is_raw_time = false,
   .is_use_passwd = false,
   .dump_config = false,
@@ -89,8 +89,7 @@ SShellArguments args = {
   .pktLen = 1000,
   .pktNum = 100,
   .pktType = "TCP",
-  .netTestRole = NULL
-};
+  .netTestRole = NULL};
 
 /*
  * Main function.
@@ -129,11 +128,14 @@ int main(int argc, char* argv[]) {
     exit(0);
   }
 
-  /* Initialize the shell */
-  TAOS* con = shellInit(&args);
-  if (con == NULL) {
-    exit(EXIT_FAILURE);
+  if (args.restful) {
+    if (convertHostToServAddr()) {
+      exit(EXIT_FAILURE);
+    }
   }
+
+  /* Initialize the shell */
+  shellInit(&args);
 
   if (tsem_init(&cancelSem, 0, 0) != 0) {
     printf("failed to create cancel semphore\n");
@@ -150,12 +152,12 @@ int main(int argc, char* argv[]) {
   taosSetSignal(SIGABRT, shellQueryInterruptHandler);
 
   /* Get grant information */
-  shellGetGrantInfo(con);
+  shellGetGrantInfo(args.con);
   shellAutoInit();
 
   /* Loop to query the input. */
   while (1) {
-    pthread_create(&pid, NULL, shellLoopQuery, con);
+    pthread_create(&pid, NULL, shellLoopQuery, args.con);
     pthread_join(pid, NULL);
   }
 
