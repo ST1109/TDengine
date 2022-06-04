@@ -43,9 +43,11 @@ typedef struct {
 
 SWords shellCommands[] = {
   {"describe", 0, 0, NULL},
-  {"show databases", 0, 0, NULL},
-  {"show tables", 0, 0, NULL},
-  {"show stables", 0, 0, NULL},
+  {"show databases;", 0, 0, NULL},
+  {"show stables;", 0, 0, NULL},
+  {"show tables;", 0, 0, NULL},
+  {"insert into", 0, 0, NULL},
+  {"select [,] from <tbname> [where] [condition] [order by] [limit]", 0, 0, NULL},
   {"use", 0, 0, NULL}
 };
 
