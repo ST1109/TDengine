@@ -41,14 +41,50 @@ typedef struct {
   int32_t matchLen;     // matched length at matched word
 }SWords;
 
+
 SWords shellCommands[] = {
+  {"alter database <dbname> [blocks] [cachelast] [comp] [keep] [replica] [quorum]", 0, 0, NULL},
+  {"alter dnote <dnodeid> balance column", 0, 0, NULL},
+  {"alter table <tbname> [add column|modify column|drop column|change tag]", 0, 0, NULL},
+  {"alter table modify column", 0, 0, NULL},
+  {"alter user <username> pass", 0, 0, NULL},
+  {"alter user <username> privilege [read|write]", 0, 0, NULL},
+  {"create dnode", 0, 0, NULL},
+  {"create table <...> tags", 0, 0, NULL},
+  {"create table <...> as", 0, 0, NULL},
+  {"create user <...> pass", 0, 0, NULL},
+  {"compact vnode in", 0, 0, NULL},
   {"describe", 0, 0, NULL},
+  {"drop database <dbname>", 0, 0, NULL},
+  {"drop table <tbname>", 0, 0, NULL},
+  {"drop user <username>", 0, 0, NULL},
+  {"set max_binary_display_width", 0, 0, NULL},
+  {"select <expr> from <tbname> where <keyword> [group by] [order by] [asc|desc] [limit] [offset] [slimit] [soffset] [interval] [sliding] [fill] [session] [state]", 0, 0, NULL},
+  {"select <expr> union all select <expr>", 0, 0, NULL},
+  {"select _block_dst() from <tbname>", 0, 0, NULL},
+  {"select client_version() from <tbname>", 0, 0, NULL},
+  {"select current_user();", 0, 0, NULL},
+  {"select database;", 0, 0, NULL},
+  {"select database;", 0, 0, NULL},
+  {"select server_version();", 0, 0, NULL},
+  {"show create database <dbname>", 0, 0, NULL},
+  {"show create stable <stbname>", 0, 0, NULL},
+  {"show create table <tbname>", 0, 0, NULL},
+  {"show connections;", 0, 0, NULL},
   {"show databases;", 0, 0, NULL},
+  {"show dnodes;", 0, 0, NULL},
+  {"show mondes;", 0, 0, NULL},
+  {"show queries;", 0, 0, NULL},
   {"show stables;", 0, 0, NULL},
+  {"show stables like", 0, 0, NULL},
+  {"show stream;", 0, 0, NULL},
   {"show tables;", 0, 0, NULL},
-  {"insert into", 0, 0, NULL},
-  {"select [,] from <tbname> [where] [condition] [order by] [limit]", 0, 0, NULL},
-  {"use", 0, 0, NULL}
+  {"show tables like", 0, 0, NULL},
+  {"show users;", 0, 0, NULL},
+  {"show variants;", 0, 0, NULL},
+  {"show vgroups;", 0, 0, NULL},
+  {"insert into <tbname> values", 0, 0, NULL},
+  {"use <dbname>", 0, 0, NULL}
 };
 
 int32_t firstMatchIndex = -1; // first match shellCommands index
