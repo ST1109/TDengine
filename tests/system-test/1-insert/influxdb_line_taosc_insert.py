@@ -356,8 +356,11 @@ class TDTestCase:
         tdCom.cleanTb()
         input_sql, stb_name = self.genFullTypeSql()
         self.resCmp(input_sql, stb_name)
-        tdSql.error(f'create table stb (ts timestamp, c1 int) tags (t1 int)')
-        tdSql.error(f'create table tb (ts timestamp, c1 int)')
+        res = tdSql.query(f'show tables', True)
+        tb1 = res[0][0]
+       # tdSql.error(f'create table stb (ts timestamp, c1 int) tags (t1 int)')
+       # tdSql.error(f'create table tb (ts timestamp, c1 int)')
+        tdSql.error(f'alter table {tb1} set tag t1 = "1";')
 
 
     def boolTypeCheckCase(self):
