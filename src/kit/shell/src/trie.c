@@ -149,7 +149,7 @@ SMatch* matchPrefix(STrie* trie, char* prefix) {
         return NULL;
     }
 
-    STrieNode** node = &trie->root.d;
+    STrieNode** node = (STrieNode** )&trie->root.d;
     for(int i = 0; i < len; i++) {
         m = prefix[i] - FIRST_ASCII;
         if(m < 0 || m >= CHAR_CNT) {

@@ -21,6 +21,7 @@
 #include "tkey.h"
 #include "tulog.h"
 #include "shellAuto.h"
+#include "trie.h"
 
 // extern function
 void insertChar(Command *cmd, char *c, int size);
@@ -328,7 +329,46 @@ void printScreen(TAOS * con, Command * cmd, SWords * match) {
 
 // show help
 void showHelp(TAOS * con, Command * cmd) {
+  
+}
 
+void searchWord(char* pre) {
+  STrie* trie  = createTrie();
+
+  insertWord(trie, "a");
+  insertWord(trie, "b");
+  insertWord(trie, "c");
+
+  insertWord(trie, "box");
+  insertWord(trie, "boxa");
+  insertWord(trie, "boxb");
+
+  insertWord(trie, "hello");
+  insertWord(trie, "hello world");
+  insertWord(trie, "hello me");
+
+  insertWord(trie, "showstring");
+
+  printf(" insert trie count=%d\n", trie->count);
+
+  SMatch* match = matchPrefix(trie, pre);
+
+  if(match){
+    printf(" match pre=%s  matched string count=%d.\n", pre, match->count);
+    SMatchNode* node = match->head;
+    int i=0;
+    while(node) {
+      printf(" i=%d word=%s \n", ++i, node->word);
+      node = node->next;
+    }
+
+    freeMatch(match);
+    match = NULL;
+  } else{
+    printf(" match pre=%s not matched.\n", pre);
+  }
+
+  freeTrie(trie);
 }
 
 // main key press tab
@@ -400,6 +440,12 @@ void pressTabKey(TAOS * con, Command * cmd) {
     showHelp(con, cmd);
     return ;
   } 
+
+  char buf[1024];
+  memset(buf, 0, sizeof(buf));
+  strncpy(buf, cmd->command, cmd->commandSize);
+  searchWord(buf);
+  return ;
 
   if (firstMatchIndex == -1) {
     firstMatchCommand(con, cmd);
