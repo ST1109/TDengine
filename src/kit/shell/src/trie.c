@@ -65,8 +65,7 @@ bool insertWord(STrie* trie, char* word) {
             return false;
         }
 
-        c = node[m];
-        if (c == NULL) {
+        if (node[m] == NULL) {
             // no set value
             if(i != len - 1) {
                 // not end char, malloc new node
@@ -78,7 +77,7 @@ bool insertWord(STrie* trie, char* word) {
                 node[m] = PTR_END;
                 break;
             }
-        }else if (c == PTR_END) {
+        }else if (node[m] == PTR_END) {
             // set end by previous word 
             if(i != len - 1) {
                 // current word is large than previous, malloc new node
@@ -86,14 +85,15 @@ bool insertWord(STrie* trie, char* word) {
                 memset(p, 0, sizeof(STrieNode));
                 node[m] = p;
             } else {
-                // current word same with previous, do nothing                
+                // current word same with previous, do nothing
+                break;
             }
         } else {
-            // c is not null, do nothing
+            // not null, do nothing
         }
 
         // move to next node
-        node = (STrieNode** )&c->d;
+        node = (STrieNode** )&node[m]->d;
     }
 
     // add count
