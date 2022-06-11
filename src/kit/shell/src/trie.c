@@ -58,7 +58,7 @@ bool insertWord(STrie* trie, char* word) {
         return false;
     }
 
-    STrieNode** node = &trie->root.d;
+    STrieNode** node = (STrieNode** )&trie->root.d;
     for(int i = 0; i < len; i++) {
         m = word[i] - FIRST_ASCII;
         if(m < 0 || m >= CHAR_CNT) {
@@ -93,7 +93,7 @@ bool insertWord(STrie* trie, char* word) {
         }
 
         // move to next node
-        node = &c->d;
+        node = (STrieNode** )&c->d;
     }
 
     // add count
@@ -134,7 +134,7 @@ void enumAllWords(STrieNode** node,  char* prefix, SMatch* match) {
             addwordToMatch(match, word); 
         } else if(c != NULL) {
             // have sub nodes, continue enum
-            enumAllWords(&c->d, word, match);
+            enumAllWords((STrieNode** )&c->d, word, match);
         }
     }
 }
@@ -177,10 +177,10 @@ SMatch* matchPrefix(STrie* trie, char* prefix) {
                 memset(root, 0, sizeof(SMatch));
 
                 // prefix is match to end char
-                enumAllWords(&c->d, prefix, root);
+                enumAllWords((STrieNode** )&c->d, prefix, root);
             } else {
                 // move to next node continue match
-                node = &c->d;
+                node = (STrieNode** )&c->d;
             }         
         }
     }
