@@ -197,7 +197,7 @@ static int32_t sifInitParam(SNode *node, SIFParam *param, SIFCtx *ctx) {
     case QUERY_NODE_COLUMN: {
       SColumnNode *cn = (SColumnNode *)node;
       /*only support tag column*/
-      SIF_ERR_RET(sifValidateColumn(cn));
+      //SIF_ERR_RET(sifValidateColumn(cn));
 
       param->colId = cn->colId;
       param->colValType = cn->node.resType.type;
