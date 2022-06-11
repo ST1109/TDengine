@@ -29,7 +29,7 @@ STrie* createTrie() {
 
 // free trie node
 void freeTrieNode(STrieNode* node) {
-    if(node == NULL)
+    if(node == NULL || node == PTR_END)
        return ;
   
     // nest free sub node on array d 
