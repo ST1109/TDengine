@@ -29,6 +29,9 @@ STrie* createTrie() {
 
 // free trie node
 void freeTrieNode(STrieNode* node) {
+    if(node == NULL)
+       return ;
+  
     // nest free sub node on array d 
     for(int i = 0; i < CHAR_CNT; i++) {
         freeTrieNode(node->d[i]);
@@ -52,7 +55,6 @@ void freeTrie(STrie* trie) {
 // insert a new word 
 bool insertWord(STrie* trie, char* word) {
     int m  = 0;
-    STrieNode* c = 0;
     int len = strlen(word);
     if(len >= MAX_WORD_LEN) {
         return false;
