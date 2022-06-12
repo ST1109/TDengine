@@ -106,7 +106,7 @@ bool insertWord(STrie* trie, char* word) {
 void addwordToMatch(SMatch* match, char* word){
     // malloc new
     SMatchNode* node = (SMatchNode* )tmalloc(sizeof(SMatchNode));
-    meset(node, 0, sizeof(SMatchNode));
+    memset(node, 0, sizeof(SMatchNode));
     strcpy(node->word, word);
 
     // append to match
