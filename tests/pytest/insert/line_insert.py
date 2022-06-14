@@ -196,11 +196,22 @@ class TDTestCase:
 
         self._conn.schemaless_insert([
                                 "sts,t1=abc,t2=ab\"c,t3=ab\\,c,t4=ab\\=c,t5=ab\\ c c1=3i64,c3=L\"passitagin\",c2=true,c4=5f64,c5=5f64,c6=\"abc\" 1626006833640000000",
-                                "sts,t1=abc c1=3i64,c2=false,c3=L\"{\\\"date\\\":\\\"2020-01-01 08:00:00.000\\\",\\\"temperature\\\":20}\",c6=\"ab\\\\c\" 1626006833640000000"
+                                "sts,t1=abc c1=3i64,c2=false,c3=L\"{\\\"date\\\":\\\"2020-01-01 08:00:00.000\\\",\\\"temperature\\\":20}\",c6=\"ab\\\\c\" 1626006833640000000"                                
                                 ], TDSmlProtocolType.LINE.value, TDSmlTimestampType.NANO_SECOND.value)
 
         tdSql.query('select tbname from sts')
         tdSql.checkRows(2)
+
+        self._conn.schemaless_insert([
+                                "test_0613_10,deviceId=sensor0 Helloword=2i 1646053743694400017",
+                                "test_0613_10,deviceId=sensor0 helloword=2i 1646053743694400119"
+                                ], TDSmlProtocolType.LINE.value, TDSmlTimestampType.NANO_SECOND.value)
+
+        tdSql.query('select * from test_0613_10')
+        tdSql.checkRows(2)
+
+        tdSql.query('describe test_0613_10')
+        tdSql.checkRows(4)
 
     def stop(self):
         tdSql.close()
