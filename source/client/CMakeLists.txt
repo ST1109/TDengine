@@ -4,6 +4,14 @@ if(TD_WINDOWS)
 else()
     add_library(taos SHARED ${CLIENT_SRC})
 endif ()
+
+# find_package(JNI REQUIRED)
+# include_directories(${JAVA_INCLUDE_PATH})
+# include_directories(${JAVA_INCLUDE_PATH2})
+INCLUDE_DIRECTORIES(jni)
+INCLUDE_DIRECTORIES(jni/linux)
+INCLUDE_DIRECTORIES(jni/windows)
+
 target_include_directories(
     taos
     PUBLIC "${TD_SOURCE_DIR}/include/client"
