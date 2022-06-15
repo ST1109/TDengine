@@ -35,6 +35,7 @@ typedef struct STrieNode {
 typedef struct STrie {
     STrieNode root;
     int count;      // all count 
+    int ref;
 }STrie;
 
 typedef struct SMatchNode {

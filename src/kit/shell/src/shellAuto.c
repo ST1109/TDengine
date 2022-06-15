@@ -26,7 +26,22 @@
 // extern function
 void insertChar(Command *cmd, char *c, int size);
 
+
+#define WT_VAR_DBNAME 0
+#define WT_VAR_STABLE 1
+#define WT_VAR_TABLE  2
+#define WT_VAR_CNT    3
+
+#define WT_TEXT       0xFF
+
+
+typedef struct SAutoPtr {
+  STrie* p;
+  int ref;
+}SAutoPtr;
+
 typedef struct SWord{
+  int type ; // word type , see WT_ define
   const char * word;
   int32_t len;
   struct SWord * next;
@@ -103,10 +118,25 @@ SWords shellCommands[] = {
   {"use <dbname>", 0, 0, NULL}
 };
 
+//
+//  ------- gobal variant define ---------
+//
 int32_t firstMatchIndex = -1; // first match shellCommands index
 int32_t lastMatchIndex  = -1; // last match shellCommands index
 int32_t curMatchIndex   = -1; // current match shellCommands index
 
+// define buffer for SWord->word for variant name used
+char varName[1024] = "";
+
+// trie array
+STrie* tries[WT_VAR_CNT];
+pthread_mutex_t autoMutex;
+
+
+
+//
+//  -------------------  parse words --------------------------
+//
 
 #define SHELL_COMMAND_COUNT() (sizeof(shellCommands) / sizeof(SWords))
 
@@ -124,18 +154,37 @@ SWord * atWord(SWords * command, int32_t index) {
 
 #define MATCH_WORD(x) atWord(x, x->matchIndex)
 
+int wordType(const char* p, int32_t len) {
+  if (strncmp(p, "<db_name>") == 0)
+     return WT_VAR_DBNAME;
+  else if (strncmp(p, "<stb_name>") == 0) 
+     return WT_VAR_STABLE;
+  else if (strncmp(p, "<tb_name>") == 0) 
+     return WT_VAR_TABLE;
+  else 
+     return WT_TEXT;
+}
+
 // add word
-SWord * addWord(const char* p, int32_t len) {
+SWord * addWord(const char* p, int32_t len, bool pattern) {
   SWord* word = (SWord *) malloc(sizeof(SWord));
   memset(word, 0, sizeof(SWord));
   word->word = p;
   word->len  = len;
+
+  // check format
+  if (pattern) {
+    word->type = wordType(p, len);
+  } else {
+    word->type = WT_TEXT;
+  }
+     
   
   return word;
 }
 
 // parse one command
-void parseCommand(SWords * command) {
+void parseCommand(SWords * command, bool pattern) {
   const char * p = command->source;
   int32_t start = 0;
   int32_t size  = command->source_len > 0 ? command->source_len : strlen(p);
@@ -159,14 +208,14 @@ void parseCommand(SWords * command) {
 
       // found split or string end , append word
       if (command->head == NULL) {
-        command->head = addWord(p + start, i - start);
+        command->head = addWord(p + start, i - start, pattern);
         command->count = 1;
       } else {
         SWord * word = command->head;
         while(word->next) {
           word = word->next;
         }
-        word->next = addWord(p + start, i - start);
+        word->next = addWord(p + start, i - start, pattern);
         command->count ++;
       }
       start = i + 1;
@@ -192,12 +241,21 @@ void freeCommand(SWords * command) {
   free(word);
 }
 
+//
+//  -------------------- shell auto ----------------
+//
+
 // init shell auto funciton , shell start call once 
 bool shellAutoInit() {
+  // command
   int32_t count = SHELL_COMMAND_COUNT();
   for (int32_t i = 0; i < count; i ++) {
-    parseCommand(shellCommands + i);
+    parseCommand(shellCommands + i, true);
   }
+
+  // tries
+  memset(tries, 0, sizeof(STrie*) * WT_VAR_CNT);
+  pthread_mutex_init(&autoMutex, NULL);
 
   return true;
 }
@@ -209,7 +267,118 @@ void shellAutoExit() {
   for (int32_t i = 0; i < count; i ++) {
     freeCommand(shellCommands + i);
   }
+
+  // free tries
+  pthread_mutex_lock(&autoMutex);
+  for(int32_t i = 0; i < WT_VAR_CNT; i++) {
+    if (tries[i]) {
+      freeTrie(tries[i]);
+      tries[i] = NULL;
+    } 
+  }
+  pthread_mutex_unlock(&autoMutex);
+  // destory
+  pthread_mutex_destroy(&autoMutex);
 }
+
+//
+//  -------------------  auto ptr  --------------------------
+//
+bool setNewAuotPtr(int type, STrie* pNew) {
+  if (pNew == NULL)
+    return false;
+
+  pthread_mutex_lock(&autoMutex);
+  STrie* pOld = tries[type];
+  if (pOld != NULL) {
+    // previous have value, release self ref count
+    if(--pOld->ref == 0) {
+      freeTrie(pOld);
+    }
+  }
+
+  // set new
+  tries[type] = pNew;
+  tries[type]->ref = 1;
+  pthread_mutex_unlock(&autoMutex);
+
+  return true;
+}
+
+// get ptr
+STrie* getAutoPtr(int type) {
+  if(tries[type] == NULL) {
+    return NULL;
+  }
+
+  pthread_mutex_lock(&autoMutex);
+  tries[type]->ref++;
+  pthread_mutex_unlock(&autoMutex);
+
+  return tries[type];
+}
+
+// put back trie to tries[type], if trie not equal tries[type].p, need free trie
+void putBackAutoPtr(int type, STrie* trie) {
+  if(trie == NULL) {
+    return false;
+  }
+  bool needFree = false;
+
+  pthread_mutex_lock(&autoMutex);
+  if(tries[type] != trie) {
+    //update by out,  can't put back , so free
+    if (--trie->ref == 1) {
+      // support multi thread getAuotPtr
+      freeTrie(trie);
+    }
+    
+  } else {
+    tries[type]->ref--;
+    assert(tries[type]->ref > 0);
+  }
+  pthread_mutex_unlock(&autoMutex);
+
+  if (needFree) {
+    freeTrie(trie);
+  }
+  return ;
+}
+
+
+
+//
+//  -------------------  var Word --------------------------
+//
+
+// search pre word from trie tree 
+char* trieSearchWord(int type, char* pre) {
+  if (type == WT_TEXT) {
+    return NULL;
+  }
+}
+
+// match var word, word1 is pattern , word2 is input from shell 
+bool matchVarWord(SWord* word1, SWord* word2) {
+  // search input word from trie tree 
+  char* word = trieSearchWord(word1->type, word2->word);
+  if (word == NULL) {
+    // not found or word1->type variable list not obtain from server, return not match
+    return false;
+  }
+
+  // save to pattern word
+  strcpy(varName, word);
+  word1->word = varName;
+  word1->len  = strlen(varName);
+  
+  return true;
+}
+
+//
+//  -------------------  match words --------------------------
+//
+
 
 // compare command cmd1 come from shellCommands , cmd2 come from user input
 int32_t compareCommand(SWords * cmd1, SWords * cmd2) {
@@ -221,18 +390,29 @@ int32_t compareCommand(SWords * cmd1, SWords * cmd2) {
   }
 
   for (int32_t i = 0; i < cmd1->count; i++) {
-    if(word1->len == word2->len) {
-      if (strncasecmp(word1->word, word2->word, word1->len) != 0)
-        return -1; 
-    } else if (word1->len < word2->len) {
-      return -1;
-    } else {
-      // word1->len > word2->len
-      if (strncasecmp(word1->word, word2->word, word2->len) == 0) {
-        cmd1->matchIndex = i;
-        cmd1->matchLen = word2->len;
-        return i;
+    if(word1->type == WT_TEXT) {
+      // WT_TEXT match
+      if(word1->len == word2->len) {
+        if (strncasecmp(word1->word, word2->word, word1->len) != 0)
+          return -1; 
+      } else if (word1->len < word2->len) {
+        return -1;
       } else {
+        // word1->len > word2->len
+        if (strncasecmp(word1->word, word2->word, word2->len) == 0) {
+          cmd1->matchIndex = i;
+          cmd1->matchLen = word2->len;
+          return i;
+        } else {
+          return -1;
+        }
+      }
+    } else {
+      // WT_VAR auto match any one word
+      if (word2->next == NULL) { // input words last one
+        if (matchVarWord(word1, word2)) {
+          return i;
+        }
         return -1;
       }
     }
@@ -276,6 +456,11 @@ SWords * matchCommand(SWords * input, bool checkLast) {
   // not match
   return NULL;
 }
+
+//
+//  -------------------  print screen --------------------------
+//
+
 
 // show screen
 void printScreen(TAOS * con, Command * cmd, SWords * match) {
@@ -378,7 +563,7 @@ void firstMatchCommand(TAOS * con, Command * cmd) {
   memset(input, 0, sizeof(SWords));
   input->source = cmd->command;
   input->source_len = cmd->commandSize;
-  parseCommand(input);
+  parseCommand(input, false);
 
   // if have many , default match first, if press tab again , switch to next
   curMatchIndex  = -1;
@@ -411,7 +596,7 @@ void nextMatchCommand(TAOS * con, Command * cmd, SWords * firstMatch) {
   }
   input->source_len += firstMatch->matchLen;
   
-  parseCommand(input);
+  parseCommand(input, false);
 
   // if have many , default match first, if press tab again , switch to next
   SWords * match = matchCommand(input, true);
@@ -441,11 +626,13 @@ void pressTabKey(TAOS * con, Command * cmd) {
     return ;
   } 
 
+/*
   char buf[1024];
   memset(buf, 0, sizeof(buf));
   strncpy(buf, cmd->command, cmd->commandSize);
   searchWord(buf);
   return ;
+*/ 
 
   if (firstMatchIndex == -1) {
     firstMatchCommand(con, cmd);
