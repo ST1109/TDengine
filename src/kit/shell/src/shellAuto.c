@@ -52,9 +52,9 @@ typedef struct {
 
 
 SWords shellCommands[] = {
-  {"alter database <dbname> [blocks] [cachelast] [comp] [keep] [replica] [quorum]", 0, 0, NULL},
+  {"alter database <db_name> [blocks] [cachelast] [comp] [keep] [replica] [quorum]", 0, 0, NULL},
   {"alter dnote <dnodeid> balance column", 0, 0, NULL},
-  {"alter table <tbname> [add column|modify column|drop column|change tag]", 0, 0, NULL},
+  {"alter table <tb_name> [add column|modify column|drop column|change tag]", 0, 0, NULL},
   {"alter table modify column", 0, 0, NULL},
   {"alter topic", 0, 0, NULL},
   {"alter user <username> pass", 0, 0, NULL},
@@ -68,29 +68,29 @@ SWords shellCommands[] = {
   {"compact vnode in", 0, 0, NULL},
   {"describe", 0, 0, NULL},
 #ifdef TD_ENTERPRISE
-  {"delete from <tbname> where", 0, 0, NULL},
+  {"delete from <tb_name> where", 0, 0, NULL},
 #endif
-  {"drop database <dbname>", 0, 0, NULL},
+  {"drop database <db_name>", 0, 0, NULL},
   {"drop dnode <dnodeid>", 0, 0, NULL},
   {"drop function", 0, 0, NULL},
   {"drop topic", 0, 0, NULL},
-  {"drop table <tbname>", 0, 0, NULL},
+  {"drop table <tb_name>", 0, 0, NULL},
   {"drop user <username>", 0, 0, NULL},
   {"kill connection", 0, 0, NULL},
   {"kill query", 0, 0, NULL},
   {"kill stream", 0, 0, NULL},
   {"set max_binary_display_width", 0, 0, NULL},
-  {"select <expr> from <tbname> where <keyword> [group by] [order by] [asc|desc] [limit] [offset] [slimit] [soffset] [interval] [sliding] [fill] [session] [state]", 0, 0, NULL},
+  {"select <expr> from <tb_name> where <keyword> [group by] [order by] [asc|desc] [limit] [offset] [slimit] [soffset] [interval] [sliding] [fill] [session] [state]", 0, 0, NULL},
   {"select <expr> union all select <expr>", 0, 0, NULL},
-  {"select _block_dst() from <tbname>", 0, 0, NULL},
-  {"select client_version() from <tbname>", 0, 0, NULL},
+  {"select _block_dst() from <tb_name>", 0, 0, NULL},
+  {"select client_version() from <tb_name>", 0, 0, NULL},
   {"select current_user();", 0, 0, NULL},
   {"select database;", 0, 0, NULL},
   {"select database;", 0, 0, NULL},
   {"select server_version();", 0, 0, NULL},
-  {"show create database <dbname>", 0, 0, NULL},
-  {"show create stable <stbname>", 0, 0, NULL},
-  {"show create table <tbname>", 0, 0, NULL},
+  {"show create database <db_name>", 0, 0, NULL},
+  {"show create stable <stb_name>", 0, 0, NULL},
+  {"show create table <tb_name>", 0, 0, NULL},
   {"show connections;", 0, 0, NULL},
   {"show databases;", 0, 0, NULL},
   {"show dnodes;", 0, 0, NULL},
@@ -107,8 +107,8 @@ SWords shellCommands[] = {
   {"show users;", 0, 0, NULL},
   {"show variables;", 0, 0, NULL},
   {"show vgroups;", 0, 0, NULL},
-  {"insert into <tbname> values", 0, 0, NULL},
-  {"use <dbname>", 0, 0, NULL}
+  {"insert into <tb_name> values", 0, 0, NULL},
+  {"use <db_name>", 0, 0, NULL}
 };
 
 //
