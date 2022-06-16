@@ -189,7 +189,7 @@ int wordType(const char* p, int32_t len) {
 SWord * addWord(const char* p, int32_t len, bool pattern) {
   SWord* word = (SWord *) malloc(sizeof(SWord));
   memset(word, 0, sizeof(SWord));
-  word->word = p;
+  word->word = (char* )p;
   word->len  = len;
 
   // check format
@@ -429,7 +429,9 @@ void writeVarNames(int type, TAOS_RES* tres) {
 
 // obtain var thread from db server 
 void* varObtainThread(void* param) {
-  int type = (int)param;
+  int type = *(int* )param;
+  free(param);
+
   if (varCon == NULL || type >= WT_VAR_CNT) {
     return ;
   }
@@ -437,7 +439,7 @@ void* varObtainThread(void* param) {
   TAOS_RES* pSql = taos_query_h(varCon, varSqls[type], NULL);
   if (taos_errno(pSql)) {
     taos_free_result(pSql);
-    return;
+    return NULL;
   }
 
   // write var names from pSql
@@ -445,6 +447,8 @@ void* varObtainThread(void* param) {
 
   // free sql
   taos_free_result(pSql);
+
+  return NULL;
 }
 
 // only match next one word from all match words
@@ -522,7 +526,9 @@ char* tireSearchWord(int type, char* pre) {
     }
   
     // create new
-    threads[type] = taosCreateThread(varObtainThread, (void* )type);
+    void * param = malloc(sizeof(int));
+    *((int* )param) = type;
+    threads[type] = taosCreateThread(varObtainThread, param);
     pthread_mutex_unlock(&tiresMutex);
     return NULL;
   }
