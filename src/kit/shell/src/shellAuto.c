@@ -144,9 +144,13 @@ char varSqls[WT_VAR_CNT][64] = {
 
 // var words current cursor, if user press any one key except tab, cursorVar can be reset to -1
 int cursorVar = -1;
+bool varMode = false; // enter var names list mode
 
 // define buffer for SWord->word for variant name used
 char varName[1024] = "";
+
+TAOS* varCon = NULL;
+
 
 
 
@@ -378,8 +382,69 @@ void putBackAutoPtr(int type, STire* tire) {
 //  -------------------  var Word --------------------------
 //
 
-void varObtainThread(void* param)   {
+#define MAX_CACHED_CNT 100000 // max cached rows 10w
+// write sql result to var name
+void writeVarNames(int type, TAOS_RES* tres) {
+  // fetch row 
+  TAOS_ROW row = taos_fetch_row(tres);
+  if (row == NULL) {
+    return ;
+  }
 
+  // sql
+  int colIdx = 0;
+  
+  int num_fields = taos_num_fields(tres);
+  TAOS_FIELD *fields = taos_fetch_fields(tres);
+
+  // check type
+  if(fields[colIdx].type != TSDB_DATA_TYPE_BINARY) {
+    return ;
+  }
+
+  // create new tires
+  STire* tire = createTrie();
+
+  // enum rows
+  char name[1024];
+  int numOfRows = 0;
+  do {
+    int32_t* lengths = taos_fetch_lengths(tres);
+    int32_t bytes = lengths[colIdx];
+    memcpy(name, row[colIdx], bytes);
+    name[bytes] = 0;  //set string end 
+    // insert to tire
+    insertWord(tire, name);
+
+    if (++numOfRows > MAX_CACHED_CNT ) {
+      break;
+    }
+
+    row = taos_fetch_row(tres);
+  } while( row != NULL);
+
+  // replace old tire
+  setNewAuotPtr(type, tire);
+}
+
+// obtain var thread from db server 
+void varObtainThread(void* param) {
+  int type = (int)param;
+  if (varCon == NULL || type >= WT_VAR_CNT) {
+    return ;
+  }
+
+  TAOS_RES* pSql = taos_query_h(varCon, varSqls[type], NULL);
+  if (taos_errno(pSql)) {
+    taos_free_result(pSql);
+    return;
+  }
+
+  // write var names from pSql
+  writeVarNames(type, pSql);
+
+  // free sql
+  taos_free_result(pSql);
 }
 
 // only match next one word from all match words
@@ -533,6 +598,7 @@ int32_t compareCommand(SWords * cmd1, SWords * cmd2) {
       // WT_VAR auto match any one word
       if (word2->next == NULL) { // input words last one
         if (matchVarWord(word1, word2)) {
+          varMode = true;
           return i;
         }
         return -1;
@@ -748,6 +814,9 @@ void pressTabKey(TAOS * con, Command * cmd) {
     return ;
   } 
 
+  // save connection to global
+  varCon = con;
+
 /*
   char buf[1024];
   memset(buf, 0, sizeof(buf));
@@ -769,4 +838,8 @@ void pressOtherKey(char c) {
   firstMatchIndex = -1;
   lastMatchIndex  = -1;
   curMatchIndex   = -1;
+
+  // var names
+  cursorVar = -1;
+  varMode = false;
 }

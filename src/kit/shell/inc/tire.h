@@ -57,13 +57,13 @@ typedef struct SMatch {
 STire* createTrie();
 
 // destroy prefix search tree
-void freeTrie(STire* trie);
+void freeTrie(STire* tire);
 
 // add a new word 
-bool insertWord(STire* trie, char* word);
+bool insertWord(STire* tire, char* word);
 
 // match prefix words
-SMatch* matchPrefix(STire* trie, char* prefix);
+SMatch* matchPrefix(STire* tire, char* prefix);
 
 // free match result
 void freeMatch(SMatch* match);
