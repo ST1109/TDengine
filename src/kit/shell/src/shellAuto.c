@@ -35,7 +35,7 @@ typedef struct SAutoPtr {
 
 typedef struct SWord{
   int type ; // word type , see WT_ define
-  const char * word;
+  char * word;
   int32_t len;
   struct SWord * next;
 }SWord;
@@ -175,14 +175,14 @@ SWord * atWord(SWords * command, int32_t index) {
 #define MATCH_WORD(x) atWord(x, x->matchIndex)
 
 int wordType(const char* p, int32_t len) {
-  if (strncmp(p, "<db_name>") == 0)
+  if (strcmp(p, "<db_name>") == 0)
      return WT_VAR_DBNAME;
-  else if (strncmp(p, "<stb_name>") == 0) 
+  else if (strcmp(p, "<stb_name>") == 0)
      return WT_VAR_STABLE;
-  else if (strncmp(p, "<tb_name>") == 0) 
+  else if (strcmp(p, "<tb_name>") == 0)
      return WT_VAR_TABLE;
-  else 
-     return WT_TEXT;
+   
+  return WT_TEXT;
 }
 
 // add word
@@ -306,7 +306,7 @@ void shellAutoExit() {
   // free threads
   for(int32_t i = 0; i < WT_VAR_CNT; i++) {
     if (threads[i]) {
-      taosDestoryThread(threads[i]);
+      taosDestroyThread(threads[i]);
       threads[i] = NULL;
     } 
   }
@@ -352,7 +352,7 @@ STire* getAutoPtr(int type) {
 // put back tire to tires[type], if tire not equal tires[type].p, need free tire
 void putBackAutoPtr(int type, STire* tire) {
   if(tire == NULL) {
-    return false;
+    return ;
   }
   bool needFree = false;
 
@@ -398,7 +398,7 @@ void writeVarNames(int type, TAOS_RES* tres) {
   TAOS_FIELD *fields = taos_fetch_fields(tres);
 
   // check type
-  if(fields[colIdx].type != TSDB_DATA_TYPE_BINARY) {
+  if(colIdx >= num_fields || fields[colIdx].type != TSDB_DATA_TYPE_BINARY) {
     return ;
   }
 
@@ -428,7 +428,7 @@ void writeVarNames(int type, TAOS_RES* tres) {
 }
 
 // obtain var thread from db server 
-void varObtainThread(void* param) {
+void* varObtainThread(void* param) {
   int type = (int)param;
   if (varCon == NULL || type >= WT_VAR_CNT) {
     return ;
@@ -522,7 +522,7 @@ char* tireSearchWord(int type, char* pre) {
     }
   
     // create new
-    threads[type] = taosCreateThread(varObtainThread, varSqls[type]);
+    threads[type] = taosCreateThread(varObtainThread, (void* )type);
     pthread_mutex_unlock(&tiresMutex);
     return NULL;
   }
