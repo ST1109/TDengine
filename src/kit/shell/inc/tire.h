@@ -53,11 +53,11 @@ typedef struct SMatch {
 
 // ----------- interface -------------
 
-// create prefix search tree, return value call freeTrie to free 
-STire* createTrie();
+// create prefix search tree, return value call freeTire to free 
+STire* createTire();
 
 // destroy prefix search tree
-void freeTrie(STire* tire);
+void freeTire(STire* tire);
 
 // add a new word 
 bool insertWord(STire* tire, char* word);

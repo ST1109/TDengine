@@ -295,7 +295,7 @@ void shellAutoExit() {
   pthread_mutex_lock(&tiresMutex);
   for(int32_t i = 0; i < WT_VAR_CNT; i++) {
     if (tires[i]) {
-      freeTrie(tires[i]);
+      freeTire(tires[i]);
       tires[i] = NULL;
     } 
   }
@@ -324,7 +324,7 @@ bool setNewAuotPtr(int type, STire* pNew) {
   if (pOld != NULL) {
     // previous have value, release self ref count
     if(--pOld->ref == 0) {
-      freeTrie(pOld);
+      freeTire(pOld);
     }
   }
 
@@ -361,7 +361,7 @@ void putBackAutoPtr(int type, STire* tire) {
     //update by out,  can't put back , so free
     if (--tire->ref == 1) {
       // support multi thread getAuotPtr
-      freeTrie(tire);
+      freeTire(tire);
     }
     
   } else {
@@ -371,7 +371,7 @@ void putBackAutoPtr(int type, STire* tire) {
   pthread_mutex_unlock(&tiresMutex);
 
   if (needFree) {
-    freeTrie(tire);
+    freeTire(tire);
   }
   return ;
 }
@@ -747,7 +747,7 @@ void searchWord(char* pre) {
     printf(" match pre=%s not matched.\n", pre);
   }
 
-  freeTrie(tire);
+  freeTire(tire);
 }
 
 // main key press tab
