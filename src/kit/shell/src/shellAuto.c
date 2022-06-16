@@ -403,7 +403,7 @@ void writeVarNames(int type, TAOS_RES* tres) {
   }
 
   // create new tires
-  STire* tire = createTrie();
+  STire* tire = createTire();
 
   // enum rows
   char name[1024];
@@ -712,7 +712,7 @@ void showHelp(TAOS * con, Command * cmd) {
 }
 
 void searchWord(char* pre) {
-  STire* tire  = createTrie();
+  STire* tire  = createTire();
 
   insertWord(tire, "a");
   insertWord(tire, "b");
