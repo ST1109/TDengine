@@ -433,7 +433,7 @@ void* varObtainThread(void* param) {
   free(param);
 
   if (varCon == NULL || type >= WT_VAR_CNT) {
-    return ;
+    return NULL;
   }
 
   TAOS_RES* pSql = taos_query_h(varCon, varSqls[type], NULL);
@@ -521,7 +521,7 @@ char* tireSearchWord(int type, char* pre) {
         return NULL;
       }
       // destroy previous thread handle for new create thread handle
-      taosDestoryThread(threads[type]);
+      taosDestroyThread(threads[type]);
       threads[type] = NULL;
     }
   
