@@ -21,22 +21,15 @@
 #include "tkey.h"
 #include "tulog.h"
 #include "shellAuto.h"
-#include "trie.h"
+#include "tire.h"
+#include "tthread.h"
 
 // extern function
 void insertChar(Command *cmd, char *c, int size);
 
 
-#define WT_VAR_DBNAME 0
-#define WT_VAR_STABLE 1
-#define WT_VAR_TABLE  2
-#define WT_VAR_CNT    3
-
-#define WT_TEXT       0xFF
-
-
 typedef struct SAutoPtr {
-  STrie* p;
+  STire* p;
   int ref;
 }SAutoPtr;
 
@@ -125,12 +118,35 @@ int32_t firstMatchIndex = -1; // first match shellCommands index
 int32_t lastMatchIndex  = -1; // last match shellCommands index
 int32_t curMatchIndex   = -1; // current match shellCommands index
 
+
+
+//
+//   ----------- global var array define -----------
+//
+#define WT_VAR_DBNAME 0
+#define WT_VAR_STABLE 1
+#define WT_VAR_TABLE  2
+#define WT_VAR_CNT    3
+
+#define WT_TEXT       0xFF
+
+// tire array
+STire* tires[WT_VAR_CNT];
+pthread_mutex_t tiresMutex;
+//save thread handle obtain var name from db server
+pthread_t* threads[WT_VAR_CNT];
+// obtain var name  with sql from server
+char varSqls[WT_VAR_CNT][64] = {
+  "show databases;",
+  "show stables;",
+  "show table;"
+};
+
+// var words current cursor, if user press any one key except tab, cursorVar can be reset to -1
+int cursorVar = -1;
+
 // define buffer for SWord->word for variant name used
 char varName[1024] = "";
-
-// trie array
-STrie* tries[WT_VAR_CNT];
-pthread_mutex_t autoMutex;
 
 
 
@@ -253,9 +269,12 @@ bool shellAutoInit() {
     parseCommand(shellCommands + i, true);
   }
 
-  // tries
-  memset(tries, 0, sizeof(STrie*) * WT_VAR_CNT);
-  pthread_mutex_init(&autoMutex, NULL);
+  // tires
+  memset(tires, 0, sizeof(STire*) * WT_VAR_CNT);
+  pthread_mutex_init(&tiresMutex, NULL);
+
+  // threads
+  memset(threads, 0, sizeof(pthread_t*) * WT_VAR_CNT);
 
   return true;
 }
@@ -268,28 +287,36 @@ void shellAutoExit() {
     freeCommand(shellCommands + i);
   }
 
-  // free tries
-  pthread_mutex_lock(&autoMutex);
+  // free tires
+  pthread_mutex_lock(&tiresMutex);
   for(int32_t i = 0; i < WT_VAR_CNT; i++) {
-    if (tries[i]) {
-      freeTrie(tries[i]);
-      tries[i] = NULL;
+    if (tires[i]) {
+      freeTrie(tires[i]);
+      tires[i] = NULL;
     } 
   }
-  pthread_mutex_unlock(&autoMutex);
+  pthread_mutex_unlock(&tiresMutex);
   // destory
-  pthread_mutex_destroy(&autoMutex);
+  pthread_mutex_destroy(&tiresMutex);
+
+  // free threads
+  for(int32_t i = 0; i < WT_VAR_CNT; i++) {
+    if (threads[i]) {
+      taosDestoryThread(threads[i]);
+      threads[i] = NULL;
+    } 
+  }
 }
 
 //
-//  -------------------  auto ptr  --------------------------
+//  -------------------  auto ptr for tires --------------------------
 //
-bool setNewAuotPtr(int type, STrie* pNew) {
+bool setNewAuotPtr(int type, STire* pNew) {
   if (pNew == NULL)
     return false;
 
-  pthread_mutex_lock(&autoMutex);
-  STrie* pOld = tries[type];
+  pthread_mutex_lock(&tiresMutex);
+  STire* pOld = tires[type];
   if (pOld != NULL) {
     // previous have value, release self ref count
     if(--pOld->ref == 0) {
@@ -298,49 +325,49 @@ bool setNewAuotPtr(int type, STrie* pNew) {
   }
 
   // set new
-  tries[type] = pNew;
-  tries[type]->ref = 1;
-  pthread_mutex_unlock(&autoMutex);
+  tires[type] = pNew;
+  tires[type]->ref = 1;
+  pthread_mutex_unlock(&tiresMutex);
 
   return true;
 }
 
 // get ptr
-STrie* getAutoPtr(int type) {
-  if(tries[type] == NULL) {
+STire* getAutoPtr(int type) {
+  if(tires[type] == NULL) {
     return NULL;
   }
 
-  pthread_mutex_lock(&autoMutex);
-  tries[type]->ref++;
-  pthread_mutex_unlock(&autoMutex);
+  pthread_mutex_lock(&tiresMutex);
+  tires[type]->ref++;
+  pthread_mutex_unlock(&tiresMutex);
 
-  return tries[type];
+  return tires[type];
 }
 
-// put back trie to tries[type], if trie not equal tries[type].p, need free trie
-void putBackAutoPtr(int type, STrie* trie) {
-  if(trie == NULL) {
+// put back tire to tires[type], if tire not equal tires[type].p, need free tire
+void putBackAutoPtr(int type, STire* tire) {
+  if(tire == NULL) {
     return false;
   }
   bool needFree = false;
 
-  pthread_mutex_lock(&autoMutex);
-  if(tries[type] != trie) {
+  pthread_mutex_lock(&tiresMutex);
+  if(tires[type] != tire) {
     //update by out,  can't put back , so free
-    if (--trie->ref == 1) {
+    if (--tire->ref == 1) {
       // support multi thread getAuotPtr
-      freeTrie(trie);
+      freeTrie(tire);
     }
     
   } else {
-    tries[type]->ref--;
-    assert(tries[type]->ref > 0);
+    tires[type]->ref--;
+    assert(tires[type]->ref > 0);
   }
-  pthread_mutex_unlock(&autoMutex);
+  pthread_mutex_unlock(&tiresMutex);
 
   if (needFree) {
-    freeTrie(trie);
+    freeTrie(tire);
   }
   return ;
 }
@@ -351,26 +378,121 @@ void putBackAutoPtr(int type, STrie* trie) {
 //  -------------------  var Word --------------------------
 //
 
-// search pre word from trie tree 
-char* trieSearchWord(int type, char* pre) {
+void varObtainThread(void* param)   {
+
+}
+
+// only match next one word from all match words
+bool matchNextPrefix(STire* tire, char* pre, char* output) {
+  bool ret = false;
+  SMatch* match = matchPrefix(tire, pre);
+  if (match == NULL || match->head == NULL) {
+    // no one matched
+    return false;
+  }
+
+  if(cursorVar == -1) {
+    // first
+    strcpy(output, match->head->word);
+    cursorVar = 0;
+    freeMatch(match);
+    return true;    
+  }
+
+  // according to cursorVar , calculate next one
+  int i = 0;
+  SMatchNode* item = match->head;
+  while (item) {
+    if(i == cursorVar + 1) {
+      // found next position ok
+      strcpy(output, item->word);
+      ret = true;
+      if(item->next == NULL) {
+        // match last item, reset cursorVar to head
+        cursorVar = -1;
+      } else {
+        cursorVar = i;
+      }
+
+      break;
+    }
+
+    // check end item
+    if(item->next == NULL) {
+      // if cursorVar > var list count, return last and reset cursorVar
+      strcpy(output, item->word);
+      ret = true;
+      cursorVar = -1;
+    }
+
+    // move next
+    item = item->next;
+    i++;
+  }
+  freeMatch(match);
+
+  return ret;
+}
+
+// search pre word from tire tree, return value is global buffer,so need not free
+char* tireSearchWord(int type, char* pre) {
   if (type == WT_TEXT) {
     return NULL;
   }
+
+  pthread_mutex_lock(&tiresMutex);
+
+  // check need obtain from server
+  if (tires[type] == NULL) {
+    // need async obtain var names from db sever
+    if(threads[type] != NULL) {
+      if(taosThreadRunning(threads[type])) {
+        // thread running , need not obtain again, return 
+        pthread_mutex_unlock(&tiresMutex);
+        return NULL;
+      }
+      // destroy previous thread handle for new create thread handle
+      taosDestoryThread(threads[type]);
+      threads[type] = NULL;
+    }
+  
+    // create new
+    threads[type] = taosCreateThread(varObtainThread, varSqls[type]);
+    pthread_mutex_unlock(&tiresMutex);
+    return NULL;
+  }
+  pthread_mutex_unlock(&tiresMutex);
+
+  // can obtain var names from local
+  STire* tire = getAutoPtr(type);
+  if (tire == NULL) {
+    return NULL;
+  }
+
+  // auto tab function is single thread operate, so here set global varName is appropriate
+  bool ret = matchNextPrefix(tire, pre, varName);
+  // used finish, put back pointer to autoptr array
+  putBackAutoPtr(type, tire);
+
+  if (ret) {
+    return varName;
+  }
+
+  return NULL;
 }
 
 // match var word, word1 is pattern , word2 is input from shell 
 bool matchVarWord(SWord* word1, SWord* word2) {
-  // search input word from trie tree 
-  char* word = trieSearchWord(word1->type, word2->word);
+  // search input word from tire tree 
+  char* word = tireSearchWord(word1->type, word2->word);
   if (word == NULL) {
     // not found or word1->type variable list not obtain from server, return not match
     return false;
   }
 
-  // save to pattern word
-  strcpy(varName, word);
-  word1->word = varName;
-  word1->len  = strlen(varName);
+  // save
+  word1->word = word;
+  word1->len  = strlen(word);
   
   return true;
 }
@@ -518,25 +640,25 @@ void showHelp(TAOS * con, Command * cmd) {
 }
 
 void searchWord(char* pre) {
-  STrie* trie  = createTrie();
+  STire* tire  = createTrie();
 
-  insertWord(trie, "a");
-  insertWord(trie, "b");
-  insertWord(trie, "c");
+  insertWord(tire, "a");
+  insertWord(tire, "b");
+  insertWord(tire, "c");
 
-  insertWord(trie, "box");
-  insertWord(trie, "boxa");
-  insertWord(trie, "boxb");
+  insertWord(tire, "box");
+  insertWord(tire, "boxa");
+  insertWord(tire, "boxb");
 
-  insertWord(trie, "hello");
-  insertWord(trie, "hello world");
-  insertWord(trie, "hello me");
+  insertWord(tire, "hello");
+  insertWord(tire, "hello world");
+  insertWord(tire, "hello me");
 
-  insertWord(trie, "showstring");
+  insertWord(tire, "showstring");
 
-  printf(" insert trie count=%d\n", trie->count);
+  printf(" insert tire count=%d\n", tire->count);
 
-  SMatch* match = matchPrefix(trie, pre);
+  SMatch* match = matchPrefix(tire, pre);
 
   if(match){
     printf(" match pre=%s  matched string count=%d.\n", pre, match->count);
@@ -553,7 +675,7 @@ void searchWord(char* pre) {
     printf(" match pre=%s not matched.\n", pre);
   }
 
-  freeTrie(trie);
+  freeTrie(tire);
 }
 
 // main key press tab

@@ -26,17 +26,17 @@
 #define CHAR_CNT   (LAST_ASCII - FIRST_ASCII + 1)
 #define MAX_WORD_LEN 256 // max insert word length
 
-#define PTR_END  (STrieNode* )(-1)
+#define PTR_END  (STireNode* )(-1)
 
-typedef struct STrieNode {
-    struct STrieNode* d[CHAR_CNT];
-}STrieNode;
+typedef struct STireNode {
+    struct STireNode* d[CHAR_CNT];
+}STireNode;
 
-typedef struct STrie {
-    STrieNode root;
+typedef struct STire {
+    STireNode root;
     int count;      // all count 
     int ref;
-}STrie;
+}STire;
 
 typedef struct SMatchNode {
     char word[MAX_WORD_LEN];
@@ -54,16 +54,16 @@ typedef struct SMatch {
 // ----------- interface -------------
 
 // create prefix search tree, return value call freeTrie to free 
-STrie* createTrie();
+STire* createTrie();
 
 // destroy prefix search tree
-void freeTrie(STrie* trie);
+void freeTrie(STire* trie);
 
 // add a new word 
-bool insertWord(STrie* trie, char* word);
+bool insertWord(STire* trie, char* word);
 
 // match prefix words
-SMatch* matchPrefix(STrie* trie, char* prefix);
+SMatch* matchPrefix(STire* trie, char* prefix);
 
 // free match result
 void freeMatch(SMatch* match);
