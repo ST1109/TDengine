@@ -821,8 +821,13 @@ JNIEXPORT jint JNICALL Java_com_taosdata_jdbc_TSDBJNIConnector_setTableNameTagsI
   }
 
   len = (*env)->GetArrayLength(env, lengthList);
+  int64_t *longArray = (int64_t *)taosMemoryCalloc(1, len);
+  (*env)->GetByteArrayRegion(env, lengthList, 0, len, (jbyte *)longArray);
   int32_t *lengthArray = (int32_t *)taosMemoryCalloc(1, len);
-  (*env)->GetByteArrayRegion(env, lengthList, 0, len, (jbyte *)lengthArray);
+  for (int i = 0; i < len; ++i) {
+    lengthArray[i] = (int)longArray[i];
+  }
+  taosMemoryFree(longArray);
   if ((*env)->ExceptionCheck(env)) {
   }
 
@@ -833,8 +838,14 @@ JNIEXPORT jint JNICALL Java_com_taosdata_jdbc_TSDBJNIConnector_setTableNameTagsI
   }
 
   len = (*env)->GetArrayLength(env, nullList);
+
+  int32_t *intArray = (int32_t *)taosMemoryCalloc(1, len);
+  (*env)->GetByteArrayRegion(env, nullList, 0, len, (jbyte *)intArray);
   char *nullArray = (char *)taosMemoryCalloc(1, len);
-  (*env)->GetByteArrayRegion(env, nullList, 0, len, (jbyte *)nullArray);
+  for (int i = 0; i < len; ++i) {
+    nullArray[i] = (char)intArray[i];
+  }
+  taosMemoryFree(intArray);
   if ((*env)->ExceptionCheck(env)) {
   }
 

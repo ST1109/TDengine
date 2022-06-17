@@ -277,7 +277,65 @@ JNIEXPORT jstring JNICALL Java_com_taosdata_jdbc_tmq_TMQConnector_tmqGetTableNam
   if (res == NULL) {
     jniDebug("jobj:%p, invalid res handle", jobj);
   }
-  printf("tablename : %s", tmq_get_table_name(res));
-  jniError("tablename : %s", tmq_get_table_name(res));
   return (*env)->NewStringUTF(env, tmq_get_table_name(res));
+}
+
+JNIEXPORT jint JNICALL Java_com_taosdata_jdbc_tmq_TMQConnector_fetchBlockImp(JNIEnv *env, jobject jobj, jlong con,
+                                                                             jlong res, jobject rowobj, jint flag,
+                                                                             jobject arrayListObj) {
+  TAOS   *tscon = (TAOS *)con;
+  int32_t code = check_for_params(jobj, con, res);
+  if (code != JNI_SUCCESS) {
+    return code;
+  }
+
+  TAOS_RES *tres = (TAOS_RES *)res;
+
+  TAOS_ROW row = NULL;
+  int32_t  numOfRows = taos_fetch_block(tres, &row);
+  if (numOfRows == 0) {
+    code = taos_errno(tres);
+    if (code == JNI_SUCCESS) {
+      jniDebug("jobj:%p, conn:%p, resultset:%p, no data to retrieve", jobj, tscon, (void *)res);
+      return JNI_FETCH_END;
+    } else {
+      jniError("jobj:%p, conn:%p, query interrupted", jobj, tscon);
+      return JNI_RESULT_SET_NULL;
+    }
+  }
+
+  int32_t numOfFields = taos_num_fields(tres);
+  assert(numOfFields > 0);
+
+  if (flag) {
+    TAOS_FIELD *fields = taos_fetch_fields(tres);
+
+    int32_t num_fields = taos_num_fields(tres);
+    if (num_fields == 0) {
+      jniError("jobj:%p, conn:%p, resultset:%p, fields size is %d", jobj, tscon, tres, num_fields);
+      return JNI_NUM_OF_FIELDS_0;
+    } else {
+      jniDebug("jobj:%p, conn:%p, resultset:%p, fields size is %d", jobj, tscon, tres, num_fields);
+      for (int i = 0; i < num_fields; ++i) {
+        jobject metadataObj = (*env)->NewObject(env, g_metadataClass, g_metadataConstructFp);
+        (*env)->SetIntField(env, metadataObj, g_metadataColtypeField, fields[i].type);
+        (*env)->SetIntField(env, metadataObj, g_metadataColsizeField, fields[i].bytes);
+        (*env)->SetIntField(env, metadataObj, g_metadataColindexField, i);
+        jstring metadataObjColname = (*env)->NewStringUTF(env, fields[i].name);
+        (*env)->SetObjectField(env, metadataObj, g_metadataColnameField, metadataObjColname);
+        (*env)->CallBooleanMethod(env, arrayListObj, g_arrayListAddFp, metadataObj);
+      }
+    }
+  }
+
+  (*env)->CallVoidMethod(env, rowobj, g_blockdataSetNumOfRowsFp, (jint)numOfRows);
+  (*env)->CallVoidMethod(env, rowobj, g_blockdataSetNumOfColsFp, (jint)numOfFields);
+
+  int32_t *field = taos_fetch_lengths(tres);
+  for (int i = 0; i < numOfFields; i++) {
+    (*env)->CallVoidMethod(env, rowobj, g_blockdataSetByteArrayFp, i, field[i] * numOfRows,
+                           jniFromNCharToByteArray(env, (char *)row[i], field[i] * numOfRows));
+  }
+
+  return JNI_SUCCESS;
 }
