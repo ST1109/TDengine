@@ -155,6 +155,14 @@ JNIEXPORT jint JNICALL Java_com_taosdata_jdbc_tmq_TMQConnector_tmqGetVgroupId(JN
  */
 JNIEXPORT jstring JNICALL Java_com_taosdata_jdbc_tmq_TMQConnector_tmqGetTableName(JNIEnv *, jobject, jlong);
 
+/*
+ * Class:     com_taosdata_jdbc_TSDBJNIConnector
+ * Method:    fetchBlockImp
+ * Signature: (JJLcom/taosdata/jdbc/TSDBResultSetBlockData;ILjava/util/List;)I
+ */
+JNIEXPORT jint JNICALL Java_com_taosdata_jdbc_tmq_TMQConnector_fetchBlockImp(JNIEnv *, jobject, jlong, jlong, jobject,
+                                                                             jint, jobject);
+
 #ifdef __cplusplus
 }
 #endif
