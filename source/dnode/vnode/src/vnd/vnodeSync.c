@@ -156,6 +156,15 @@ void vnodeProposeMsg(SQueueInfo *pInfo, STaosQall *qall, int32_t numOfMsgs) {
 
       SRpcMsg rsp = {.code = TSDB_CODE_RPC_REDIRECT, .info = pMsg->info};
       tmsgSendRedirectRsp(&rsp, &newEpSet);
+
+    } else if (code == 1) {
+      vTrace("vgId:%d, msg:%p apply right now", vgId, pMsg);
+      SRpcMsg rsp = {.code = pMsg->code, .info = pMsg->info};
+      if (vnodeProcessWriteReq(pVnode, pMsg, pMsg->info.conn.applyIndex, &rsp) < 0) {
+        rsp.code = terrno;
+        vError("vgId:%d, msg:%p failed to apply right now since %s", vgId, pMsg, terrstr());
+      }
+
     } else {
       if (terrno != 0) code = terrno;
       vError("vgId:%d, msg:%p failed to propose since %s, code:0x%x", vgId, pMsg, tstrerror(code), code);

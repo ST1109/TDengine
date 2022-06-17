@@ -623,14 +623,23 @@ int32_t syncNodePropose(SSyncNode* pSyncNode, const SRpcMsg* pMsg, bool isWeak) 
     SRpcMsg            rpcMsg;
     syncClientRequest2RpcMsg(pSyncMsg, &rpcMsg);
 
-    if (pSyncNode->FpEqMsg != NULL && (*pSyncNode->FpEqMsg)(pSyncNode->msgcb, &rpcMsg) == 0) {
-      ret = 0;
+    if (pSyncNode->replicaNum == 1 && syncUtilUserCommit(pMsg->msgType)) {
+      syncNodeOnClientRequestCb(pSyncNode, pSyncMsg);
+      syncRespMgrDel(pSyncNode->pSyncRespMgr, seqNum);
+      ret = 1;
+
     } else {
-      ret = -1;
-      terrno = TSDB_CODE_SYN_INTERNAL_ERROR;
-      sError("syncPropose pSyncNode->FpEqMsg is NULL");
+      if (pSyncNode->FpEqMsg != NULL && (*pSyncNode->FpEqMsg)(pSyncNode->msgcb, &rpcMsg) == 0) {
+        ret = 0;
+      } else {
+        ret = -1;
+        terrno = TSDB_CODE_SYN_INTERNAL_ERROR;
+        sError("syncPropose pSyncNode->FpEqMsg is NULL");
+      }
     }
+
     syncClientRequestDestroy(pSyncMsg);
+
   } else {
     ret = -1;
     terrno = TSDB_CODE_SYN_NOT_LEADER;
@@ -2221,7 +2230,7 @@ static int32_t syncNodeConfigChange(SSyncNode* ths, SRpcMsg* pRpcMsg, SSyncRaftE
       syncUtilJson2Line(oldStr);
       syncUtilJson2Line(newStr);
       snprintf(tmpbuf, sizeof(tmpbuf), "config change from %d to %d, index:%ld, %s  -->  %s", oldSyncCfg.replicaNum,
-      newSyncCfg.replicaNum, pEntry->index, oldStr, newStr);
+               newSyncCfg.replicaNum, pEntry->index, oldStr, newStr);
       taosMemoryFree(oldStr);
       taosMemoryFree(newStr);
 
@@ -2238,7 +2247,7 @@ static int32_t syncNodeConfigChange(SSyncNode* ths, SRpcMsg* pRpcMsg, SSyncRaftE
     syncUtilJson2Line(oldStr);
     syncUtilJson2Line(newStr);
     snprintf(tmpbuf, sizeof(tmpbuf), "config change2 from %d to %d, index:%ld, %s  -->  %s", oldSyncCfg.replicaNum,
-    newSyncCfg.replicaNum, pEntry->index, oldStr, newStr);
+             newSyncCfg.replicaNum, pEntry->index, oldStr, newStr);
     taosMemoryFree(oldStr);
     taosMemoryFree(newStr);
 
@@ -2294,17 +2303,20 @@ int32_t syncNodeCommit(SSyncNode* ths, SyncIndex beginIndex, SyncIndex endIndex,
 
         // user commit
         if (ths->pFsm->FpCommitCb != NULL && syncUtilUserCommit(pEntry->originalRpcType)) {
-          SFsmCbMeta cbMeta;
-          cbMeta.index = pEntry->index;
-          cbMeta.isWeak = pEntry->isWeak;
-          cbMeta.code = 0;
-          cbMeta.state = ths->state;
-          cbMeta.seqNum = pEntry->seqNum;
-          cbMeta.term = pEntry->term;
-          cbMeta.currentTerm = ths->pRaftStore->currentTerm;
-          cbMeta.flag = flag;
+          bool optimize = ths->replicaNum == 1 && ths->restoreFinish;
+          if (!optimize) {
+            SFsmCbMeta cbMeta;
+            cbMeta.index = pEntry->index;
+            cbMeta.isWeak = pEntry->isWeak;
+            cbMeta.code = 0;
+            cbMeta.state = ths->state;
+            cbMeta.seqNum = pEntry->seqNum;
+            cbMeta.term = pEntry->term;
+            cbMeta.currentTerm = ths->pRaftStore->currentTerm;
+            cbMeta.flag = flag;
 
-          ths->pFsm->FpCommitCb(ths->pFsm, &rpcMsg, cbMeta);
+            ths->pFsm->FpCommitCb(ths->pFsm, &rpcMsg, cbMeta);
+          }
         }
 
         // config change
