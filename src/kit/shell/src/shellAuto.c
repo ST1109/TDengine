@@ -753,12 +753,15 @@ void createInputFromFirst(SWords* input, SWords * firstMatch) {
     word = word->next;
   }
   // appand half matched word for last
-  input->source_len += firstMatch->matchLen;
+  if (word) {
+    strncpy(input->source + input->source_len, word->word, firstMatch->matchLen);
+    input->source_len += firstMatch->matchLen;
+  }
 }
 
 // user press Tabkey again is named next
 void nextMatchCommand(TAOS * con, Command * cmd, SWords * firstMatch) {
-  if(firstMatch || firstMatch->head == NULL) {
+  if(firstMatch == NULL || firstMatch->head == NULL) {
     return ;
   }
   SWords* input = (SWords *)malloc(sizeof(SWords));
