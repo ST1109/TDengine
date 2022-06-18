@@ -41,7 +41,7 @@ typedef struct SWord{
 }SWord;
 
 typedef struct {
-  const char * source;
+  char * source;
   int32_t source_len; // valid data length in source
   int32_t count;
   SWord*  head;
@@ -205,7 +205,7 @@ SWord * addWord(const char* p, int32_t len, bool pattern) {
 
 // parse one command
 void parseCommand(SWords * command, bool pattern) {
-  const char * p = command->source;
+  char * p = command->source;
   int32_t start = 0;
   int32_t size  = command->source_len > 0 ? command->source_len : strlen(p);
 
@@ -738,8 +738,8 @@ void createInputFromFirst(SWords* input, SWords * firstMatch) {
   //
   // if next pressTabKey , input context come from firstMatch, set matched length with source_len
   //
-  input->source = (const char*)malloc(1024);
-  memset(input->source, 0, 1024);
+  input->source = (char*)malloc(1024);
+  memset((void* )input->source, 0, 1024);
 
   SWord * word = firstMatch->head;
 
