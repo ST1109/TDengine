@@ -103,14 +103,14 @@ bool insertWord(STire* tire, char* word) {
     return true;
 }
 
-void addwordToMatch(SMatch* match, char* word){
+void addWordToMatch(SMatch* match, char* word){
     // malloc new
     SMatchNode* node = (SMatchNode* )tmalloc(sizeof(SMatchNode));
     memset(node, 0, sizeof(SMatchNode));
     strcpy(node->word, word);
 
     // append to match
-    if(match->head  == NULL) {
+    if(match->head == NULL) {
         match->head = match->tail = node;
     } else {
         match->tail->next = node;
@@ -134,7 +134,7 @@ void enumAllWords(STireNode** node,  char* prefix, SMatch* match) {
 
         if(c == PTR_END) {
             // str end, append to match list
-            addwordToMatch(match, word); 
+            addWordToMatch(match, word); 
         } else if(c != NULL) {
             // have sub nodes, continue enum
             enumAllWords((STireNode** )&c->d, word, match);
@@ -142,9 +142,9 @@ void enumAllWords(STireNode** node,  char* prefix, SMatch* match) {
     }
 }
 
-// match prefix words
-SMatch* matchPrefix(STire* tire, char* prefix) {
-    SMatch* root = NULL;
+// match prefix words, if match is not NULL , put all item to match and return match
+SMatch* matchPrefix(STire* tire, char* prefix, SMatch* match) {
+    SMatch* root = match;
     int m  = 0;
     STireNode* c = 0;
     int len = strlen(prefix);
@@ -175,9 +175,12 @@ SMatch* matchPrefix(STire* tire, char* prefix) {
         } else {
             // previous matched, need check prefix is end
             if(i == len - 1) {
-                // malloc match
-                root = (SMatch* )tmalloc(sizeof(SMatch));
-                memset(root, 0, sizeof(SMatch));
+                // malloc match if not pass by param pMatch
+                if(root == NULL) {                        
+                    root = (SMatch* )tmalloc(sizeof(SMatch));
+                    memset(root, 0, sizeof(SMatch));
+                    strcpy(root->pre, prefix);
+                }
 
                 // prefix is match to end char
                 enumAllWords((STireNode** )&c->d, prefix, root);
@@ -190,6 +193,37 @@ SMatch* matchPrefix(STire* tire, char* prefix) {
 
     // return 
     return root;
+}
+
+// get all items from tires tree
+SMatch* enumAll(STire* tire) {
+    char pre[2] ={0, 0};
+    STireNode* c;
+
+    SMatch* match = (SMatch* )tmalloc(sizeof(SMatch));
+    memset(match, 0, sizeof(SMatch));
+    
+    // enum first layer
+    for(int i = 0; i < CHAR_CNT; i++) {
+        pre[0] = FIRST_ASCII + i;
+        
+        // each node
+        c = tire->root.d[i];
+        if (c == NULL || c ==  PTR_END) {
+            // this branch no data
+            continue;
+        }
+
+        // this branch have data
+        matchPrefix(tire, pre, match);    
+    }
+
+    // return if need
+    if(match->count == 0) {
+        freeMatch(match);
+        match = NULL;
+    }
+    return match;
 }
 
 // free match result
@@ -211,5 +245,5 @@ void freeMatch(SMatch* match) {
     }
 
     // second free self
-    tfree(match);
+    free(match);
 }

@@ -48,6 +48,7 @@ typedef struct SMatch {
     SMatchNode* head;
     SMatchNode* tail;  // append node to tail
     int count;
+    char pre[MAX_WORD_LEN];
 }SMatch;
 
 
@@ -62,8 +63,11 @@ void freeTire(STire* tire);
 // add a new word 
 bool insertWord(STire* tire, char* word);
 
-// match prefix words
-SMatch* matchPrefix(STire* tire, char* prefix);
+// match prefix words, if match is not NULL , put all item to match and return match
+SMatch* matchPrefix(STire* tire, char* prefix, SMatch* match);
+
+// get all items from tires tree
+SMatch* enumAll(STire* tire);
 
 // free match result
 void freeMatch(SMatch* match);

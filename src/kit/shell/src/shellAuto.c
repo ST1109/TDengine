@@ -117,7 +117,7 @@ SWords shellCommands[] = {
 int32_t firstMatchIndex = -1; // first match shellCommands index
 int32_t lastMatchIndex  = -1; // last match shellCommands index
 int32_t curMatchIndex   = -1; // current match shellCommands index
-
+int32_t lastWordBytes   = -1; // printShow last word length 
 
 
 //
@@ -150,8 +150,7 @@ bool varMode = false; // enter var names list mode
 char varName[1024] = "";
 
 TAOS* varCon = NULL;
-
-
+SMatch* lastMatch = NULL; // save last match result 
 
 
 //
@@ -310,6 +309,12 @@ void shellAutoExit() {
       threads[i] = NULL;
     } 
   }
+
+  // free lastMatch
+  if (lastMatch) {
+    freeMatch(lastMatch);
+    lastMatch = NULL;
+  }
 }
 
 //
@@ -454,7 +459,35 @@ void* varObtainThread(void* param) {
 // only match next one word from all match words
 bool matchNextPrefix(STire* tire, char* pre, char* output) {
   bool ret = false;
-  SMatch* match = matchPrefix(tire, pre);
+  SMatch* match = NULL;
+
+  // re-use last result
+  if (lastMatch) {
+    if (strcmp(pre, lastMatch->pre) == 0) {
+      // same pre
+      match = lastMatch;
+    }
+  }
+
+  if(match == NULL) {
+    // not same with last result
+    if (pre[0] == 0) {
+      // EMPTY PRE
+      match = enumAll(tire);
+    } else {
+      // NOT EMPTY
+      match = matchPrefix(tire, pre, NULL);
+    }
+    
+    // save to lastMatch
+    if (match) {
+      if(lastMatch)
+        freeMatch(lastMatch);
+      lastMatch = match;
+    }
+  }
+
+  // check valid
   if (match == NULL || match->head == NULL) {
     // no one matched
     return false;
@@ -464,7 +497,6 @@ bool matchNextPrefix(STire* tire, char* pre, char* output) {
     // first
     strcpy(output, match->head->word);
     cursorVar = 0;
-    freeMatch(match);
     return true;    
   }
 
@@ -498,7 +530,6 @@ bool matchNextPrefix(STire* tire, char* pre, char* output) {
     item = item->next;
     i++;
   }
-  freeMatch(match);
 
   return ret;
 }
@@ -555,7 +586,10 @@ char* tireSearchWord(int type, char* pre) {
 // match var word, word1 is pattern , word2 is input from shell 
 bool matchVarWord(SWord* word1, SWord* word2) {
   // search input word from tire tree 
-  char* word = tireSearchWord(word1->type, word2->word);
+  char pre[256];
+  memcpy(pre, word2->word, word2->len);
+  pre[word2->len] = 0;
+  char* word = tireSearchWord(word1->type, pre);
   if (word == NULL) {
     // not found or word1->type variable list not obtain from server, return not match
     return false;
@@ -625,13 +659,17 @@ int32_t compareCommand(SWords * cmd1, SWords * cmd2) {
 }
 
 // match command
-SWords * matchCommand(SWords * input, bool checkLast) {
+SWords * matchCommand(SWords * input, bool continueSearch) {
   int32_t count = SHELL_COMMAND_COUNT();
   for (int32_t i = 0; i < count; i ++) {
     SWords * shellCommand = shellCommands + i;
-    if (checkLast && lastMatchIndex != -1 && i <= lastMatchIndex) {
+    if (continueSearch && lastMatchIndex != -1 && i <= lastMatchIndex) {
       // new match must greate than lastMatchIndex
-      continue;
+      if(varMode && i == lastMatchIndex) {
+        // do nothing, var match on lastMatchIndex
+      } else {
+        continue;
+      }
     }
 
     // command is large
@@ -670,20 +708,21 @@ void printScreen(TAOS * con, Command * cmd, SWords * match) {
   const char * str = NULL;
   int strLen = 0; 
 
-  if (firstMatchIndex == curMatchIndex && lastMatchIndex == -1) {
+  if (firstMatchIndex == curMatchIndex && lastWordBytes == -1) {
     // first press tab
     SWord * word = MATCH_WORD(match);
     str = word->word + match->matchLen;
     strLen = word->len - match->matchLen;
     lastMatchIndex = firstMatchIndex;
+    lastWordBytes = word->len;
   } else {
-    if (lastMatchIndex == -1)
+    if (lastWordBytes == -1)
       return ;
-    // continue to press tab any times
-    SWords * last = &shellCommands[lastMatchIndex];
-    int count = MATCH_WORD(last)->len;
 
-    // delete last match word
+    // continue to press tab any times
+    int count = lastWordBytes;
+
+    // delete last match word length
     int size = 0;
     int width = 0;
     clearScreen(cmd->endOffset + prompt_size, cmd->screenOffset + prompt_size);
@@ -702,6 +741,7 @@ void printScreen(TAOS * con, Command * cmd, SWords * match) {
     strLen = word->len;
     // set current to last
     lastMatchIndex = curMatchIndex;
+    lastWordBytes = word->len;
   }
   
   // insert new
@@ -827,6 +867,7 @@ void pressOtherKey(char c) {
   firstMatchIndex = -1;
   lastMatchIndex  = -1;
   curMatchIndex   = -1;
+  lastWordBytes   = -1;
 
   // var names
   cursorVar = -1;
