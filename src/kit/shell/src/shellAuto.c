@@ -697,7 +697,7 @@ void printScreen(TAOS * con, Command * cmd, SWords * match) {
       cmd->endOffset -= width;
     }
 
-   SWord * word = MATCH_WORD(match);
+    SWord * word = MATCH_WORD(match);
     str = word->word;
     strLen = word->len;
     // set current to last
@@ -708,49 +708,6 @@ void printScreen(TAOS * con, Command * cmd, SWords * match) {
   insertChar(cmd, (char *)str, strLen);
 }
 
-// show help
-void showHelp(TAOS * con, Command * cmd) {
-  
-}
-
-void searchWord(char* pre) {
-  STire* tire  = createTire();
-
-  insertWord(tire, "a");
-  insertWord(tire, "b");
-  insertWord(tire, "c");
-
-  insertWord(tire, "box");
-  insertWord(tire, "boxa");
-  insertWord(tire, "boxb");
-
-  insertWord(tire, "hello");
-  insertWord(tire, "hello world");
-  insertWord(tire, "hello me");
-
-  insertWord(tire, "showstring");
-
-  printf(" insert tire count=%d\n", tire->count);
-
-  SMatch* match = matchPrefix(tire, pre);
-
-  if(match){
-    printf(" match pre=%s  matched string count=%d.\n", pre, match->count);
-    SMatchNode* node = match->head;
-    int i=0;
-    while(node) {
-      printf(" i=%d word=%s \n", ++i, node->word);
-      node = node->next;
-    }
-
-    freeMatch(match);
-    match = NULL;
-  } else{
-    printf(" match pre=%s not matched.\n", pre);
-  }
-
-  freeTire(tire);
-}
 
 // main key press tab
 void firstMatchCommand(TAOS * con, Command * cmd) {
@@ -776,22 +733,41 @@ void firstMatchCommand(TAOS * con, Command * cmd) {
   freeCommand(input);
 }
 
-// next Match Command
+// create input source
+void createInputFromFirst(SWords* input, SWords * firstMatch) {
+  //
+  // if next pressTabKey , input context come from firstMatch, set matched length with source_len
+  //
+  input->source = (const char*)malloc(1024);
+  memset(input->source, 0, 1024);
+
+  SWord * word = firstMatch->head;
+
+  // source_len = full match word->len + half match with firstMatch->matchLen  
+  for (int i = 0; i < firstMatch->matchIndex && word; i++) {
+    // combine source from each word
+    strncpy(input->source + input->source_len, word->word, word->len);
+    strcat(input->source, " "); // append blank splite
+    input->source_len += word->len + 1; // 1 is blank length
+    // move next
+    word = word->next;
+  }
+  // appand half matched word for last
+  input->source_len += firstMatch->matchLen;
+}
+
+// user press Tabkey again is named next
 void nextMatchCommand(TAOS * con, Command * cmd, SWords * firstMatch) {
+  if(firstMatch || firstMatch->head == NULL) {
+    return ;
+  }
   SWords* input = (SWords *)malloc(sizeof(SWords));
   memset(input, 0, sizeof(SWords));
 
-  // set source and source_len
-  input->source = firstMatch->source;
-  SWord * word = firstMatch->head;
-  if (word == NULL)
-    return ;
-  for (int i = 0; i < firstMatch->matchIndex && word; i++) {
-    input->source_len += word->len + 1; // 1 is blank
-    word = word->next;
-  }
-  input->source_len += firstMatch->matchLen;
-  
+  // create input from firstMatch
+  createInputFromFirst(input, firstMatch);
+
+  // parse input
   parseCommand(input, false);
 
   // if have many , default match first, if press tab again , switch to next
@@ -809,9 +785,19 @@ void nextMatchCommand(TAOS * con, Command * cmd, SWords * firstMatch) {
 
   // print to screen
   printScreen(con, cmd, match);
+
+  // free
+  if(input->source) {
+    free(input->source);
+    input->source = NULL;
+  }
   freeCommand(input);
 }
 
+// show help
+void showHelp(TAOS * con, Command * cmd) {
+  
+}
 
 // main key press tab
 void pressTabKey(TAOS * con, Command * cmd) {
@@ -824,14 +810,6 @@ void pressTabKey(TAOS * con, Command * cmd) {
 
   // save connection to global
   varCon = con;
-
-/*
-  char buf[1024];
-  memset(buf, 0, sizeof(buf));
-  strncpy(buf, cmd->command, cmd->commandSize);
-  searchWord(buf);
-  return ;
-*/ 
 
   if (firstMatchIndex == -1) {
     firstMatchCommand(con, cmd);
