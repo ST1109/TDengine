@@ -165,6 +165,10 @@ void vnodeProposeMsg(SQueueInfo *pInfo, STaosQall *qall, int32_t numOfMsgs) {
         vError("vgId:%d, msg:%p failed to apply right now since %s", vgId, pMsg, terrstr());
       }
 
+      if (rsp.info.handle != NULL) {
+        tmsgSendRsp(&rsp);
+      }
+
     } else {
       if (terrno != 0) code = terrno;
       vError("vgId:%d, msg:%p failed to propose since %s, code:0x%x", vgId, pMsg, tstrerror(code), code);

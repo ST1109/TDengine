@@ -623,7 +623,7 @@ int32_t syncNodePropose(SSyncNode* pSyncNode, const SRpcMsg* pMsg, bool isWeak) 
     SRpcMsg            rpcMsg;
     syncClientRequest2RpcMsg(pSyncMsg, &rpcMsg);
 
-    if (pSyncNode->replicaNum == 1 && syncUtilUserCommit(pMsg->msgType)) {
+    if (pSyncNode->replicaNum == 1 && syncUtilUserCommit(pMsg->msgType) && pSyncNode->vgId != 1) {
       syncNodeOnClientRequestCb(pSyncNode, pSyncMsg);
       syncRespMgrDel(pSyncNode->pSyncRespMgr, seqNum);
       ret = 1;
@@ -645,6 +645,8 @@ int32_t syncNodePropose(SSyncNode* pSyncNode, const SRpcMsg* pMsg, bool isWeak) 
     terrno = TSDB_CODE_SYN_NOT_LEADER;
     sError("syncPropose not leader, %s", syncUtilState2String(pSyncNode->state));
   }
+
+  sTrace("syncNodePropose return %d \n", ret);
 
   return ret;
 }
@@ -2303,7 +2305,7 @@ int32_t syncNodeCommit(SSyncNode* ths, SyncIndex beginIndex, SyncIndex endIndex,
 
         // user commit
         if (ths->pFsm->FpCommitCb != NULL && syncUtilUserCommit(pEntry->originalRpcType)) {
-          bool optimize = ths->replicaNum == 1 && ths->restoreFinish;
+          bool optimize = ths->replicaNum == 1 && ths->restoreFinish && ths->vgId != 1;
           if (!optimize) {
             SFsmCbMeta cbMeta;
             cbMeta.index = pEntry->index;
