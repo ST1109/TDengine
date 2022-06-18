@@ -604,6 +604,8 @@ int32_t compareCommand(SWords * cmd1, SWords * cmd2) {
       // WT_VAR auto match any one word
       if (word2->next == NULL) { // input words last one
         if (matchVarWord(word1, word2)) {
+          cmd1->matchIndex = i;
+          cmd1->matchLen = word2->len;
           varMode = true;
           return i;
         }
