@@ -66,7 +66,7 @@ SWords shellCommands[] = {
   {"create topic", 0, 0, NULL},
   {"create user <...> pass", 0, 0, NULL},
   {"compact vnode in", 0, 0, NULL},
-  {"describe", 0, 0, NULL},
+  {"describe <stb_name>", 0, 0, NULL},
 #ifdef TD_ENTERPRISE
   {"delete from <tb_name> where", 0, 0, NULL},
 #endif
@@ -136,11 +136,18 @@ pthread_mutex_t tiresMutex;
 //save thread handle obtain var name from db server
 pthread_t* threads[WT_VAR_CNT];
 // obtain var name  with sql from server
+char varTypes[WT_VAR_CNT][64] = {
+  "<db_name>",
+  "<stb_name>",
+  "<tb_name>"
+};
+
 char varSqls[WT_VAR_CNT][64] = {
   "show databases;",
   "show stables;",
   "show table;"
 };
+
 
 // var words current cursor, if user press any one key except tab, cursorVar can be reset to -1
 int cursorVar = -1;
@@ -174,13 +181,10 @@ SWord * atWord(SWords * command, int32_t index) {
 #define MATCH_WORD(x) atWord(x, x->matchIndex)
 
 int wordType(const char* p, int32_t len) {
-  if (strcmp(p, "<db_name>") == 0)
-     return WT_VAR_DBNAME;
-  else if (strcmp(p, "<stb_name>") == 0)
-     return WT_VAR_STABLE;
-  else if (strcmp(p, "<tb_name>") == 0)
-     return WT_VAR_TABLE;
-   
+  for (int i = 0; i < WT_VAR_CNT; i++) {
+    if (strcmp(p, varTypes[i]) == 0)
+        return i;
+  }
   return WT_TEXT;
 }
 
@@ -212,7 +216,7 @@ void parseCommand(SWords * command, bool pattern) {
   for (int i = 0; i <= size; i++) {
     if (p[i] == ' ' || i == size) {
       // check continue blank like '    '
-      if(p[i] == ' ') {
+      if (p[i] == ' ') {
         if (lastBlank) {
           start ++;
           continue;
@@ -231,7 +235,7 @@ void parseCommand(SWords * command, bool pattern) {
         command->count = 1;
       } else {
         SWord * word = command->head;
-        while(word->next) {
+        while (word->next) {
           word = word->next;
         }
         word->next = addWord(p + start, i - start, pattern);
@@ -292,7 +296,7 @@ void shellAutoExit() {
 
   // free tires
   pthread_mutex_lock(&tiresMutex);
-  for(int32_t i = 0; i < WT_VAR_CNT; i++) {
+  for (int32_t i = 0; i < WT_VAR_CNT; i++) {
     if (tires[i]) {
       freeTire(tires[i]);
       tires[i] = NULL;
@@ -303,7 +307,7 @@ void shellAutoExit() {
   pthread_mutex_destroy(&tiresMutex);
 
   // free threads
-  for(int32_t i = 0; i < WT_VAR_CNT; i++) {
+  for (int32_t i = 0; i < WT_VAR_CNT; i++) {
     if (threads[i]) {
       taosDestroyThread(threads[i]);
       threads[i] = NULL;
@@ -328,7 +332,7 @@ bool setNewAuotPtr(int type, STire* pNew) {
   STire* pOld = tires[type];
   if (pOld != NULL) {
     // previous have value, release self ref count
-    if(--pOld->ref == 0) {
+    if (--pOld->ref == 0) {
       freeTire(pOld);
     }
   }
@@ -343,7 +347,7 @@ bool setNewAuotPtr(int type, STire* pNew) {
 
 // get ptr
 STire* getAutoPtr(int type) {
-  if(tires[type] == NULL) {
+  if (tires[type] == NULL) {
     return NULL;
   }
 
@@ -356,13 +360,13 @@ STire* getAutoPtr(int type) {
 
 // put back tire to tires[type], if tire not equal tires[type].p, need free tire
 void putBackAutoPtr(int type, STire* tire) {
-  if(tire == NULL) {
+  if (tire == NULL) {
     return ;
   }
   bool needFree = false;
 
   pthread_mutex_lock(&tiresMutex);
-  if(tires[type] != tire) {
+  if (tires[type] != tire) {
     //update by out,  can't put back , so free
     if (--tire->ref == 1) {
       // support multi thread getAuotPtr
@@ -403,7 +407,7 @@ void writeVarNames(int type, TAOS_RES* tres) {
   TAOS_FIELD *fields = taos_fetch_fields(tres);
 
   // check type
-  if(colIdx >= num_fields || fields[colIdx].type != TSDB_DATA_TYPE_BINARY) {
+  if (colIdx >= num_fields || fields[colIdx].type != TSDB_DATA_TYPE_BINARY) {
     return ;
   }
 
@@ -426,7 +430,7 @@ void writeVarNames(int type, TAOS_RES* tres) {
     }
 
     row = taos_fetch_row(tres);
-  } while( row != NULL);
+  } while (row != NULL);
 
   // replace old tire
   setNewAuotPtr(type, tire);
@@ -469,7 +473,7 @@ bool matchNextPrefix(STire* tire, char* pre, char* output) {
     }
   }
 
-  if(match == NULL) {
+  if (match == NULL) {
     // not same with last result
     if (pre[0] == 0) {
       // EMPTY PRE
@@ -481,7 +485,7 @@ bool matchNextPrefix(STire* tire, char* pre, char* output) {
     
     // save to lastMatch
     if (match) {
-      if(lastMatch)
+      if (lastMatch)
         freeMatch(lastMatch);
       lastMatch = match;
     }
@@ -493,7 +497,7 @@ bool matchNextPrefix(STire* tire, char* pre, char* output) {
     return false;
   }
 
-  if(cursorVar == -1) {
+  if (cursorVar == -1) {
     // first
     strcpy(output, match->head->word);
     cursorVar = 0;
@@ -504,11 +508,11 @@ bool matchNextPrefix(STire* tire, char* pre, char* output) {
   int i = 0;
   SMatchNode* item = match->head;
   while (item) {
-    if(i == cursorVar + 1) {
+    if (i == cursorVar + 1) {
       // found next position ok
       strcpy(output, item->word);
       ret = true;
-      if(item->next == NULL) {
+      if (item->next == NULL) {
         // match last item, reset cursorVar to head
         cursorVar = -1;
       } else {
@@ -519,7 +523,7 @@ bool matchNextPrefix(STire* tire, char* pre, char* output) {
     }
 
     // check end item
-    if(item->next == NULL) {
+    if (item->next == NULL) {
       // if cursorVar > var list count, return last and reset cursorVar
       strcpy(output, item->word);
       ret = true;
@@ -545,8 +549,8 @@ char* tireSearchWord(int type, char* pre) {
   // check need obtain from server
   if (tires[type] == NULL) {
     // need async obtain var names from db sever
-    if(threads[type] != NULL) {
-      if(taosThreadRunning(threads[type])) {
+    if (threads[type] != NULL) {
+      if (taosThreadRunning(threads[type])) {
         // thread running , need not obtain again, return 
         pthread_mutex_unlock(&tiresMutex);
         return NULL;
@@ -612,14 +616,14 @@ int32_t compareCommand(SWords * cmd1, SWords * cmd2) {
   SWord * word1 = cmd1->head;
   SWord * word2 = cmd2->head;
 
-  if(word1 == NULL || word2 == NULL) {
+  if (word1 == NULL || word2 == NULL) {
     return -1;
   }
 
   for (int32_t i = 0; i < cmd1->count; i++) {
-    if(word1->type == WT_TEXT) {
+    if (word1->type == WT_TEXT) {
       // WT_TEXT match
-      if(word1->len == word2->len) {
+      if (word1->len == word2->len) {
         if (strncasecmp(word1->word, word2->word, word1->len) != 0)
           return -1; 
       } else if (word1->len < word2->len) {
@@ -650,7 +654,7 @@ int32_t compareCommand(SWords * cmd1, SWords * cmd2) {
     // move next
     word1 = word1->next;
     word2 = word2->next;
-    if(word1 == NULL || word2 == NULL) {
+    if (word1 == NULL || word2 == NULL) {
       return -1;
     }
   }
@@ -665,7 +669,7 @@ SWords * matchCommand(SWords * input, bool continueSearch) {
     SWords * shellCommand = shellCommands + i;
     if (continueSearch && lastMatchIndex != -1 && i <= lastMatchIndex) {
       // new match must greate than lastMatchIndex
-      if(varMode && i == lastMatchIndex) {
+      if (varMode && i == lastMatchIndex) {
         // do nothing, var match on lastMatchIndex
       } else {
         continue;
@@ -673,7 +677,7 @@ SWords * matchCommand(SWords * input, bool continueSearch) {
     }
 
     // command is large
-    if(input->count > shellCommand->count ) {
+    if (input->count > shellCommand->count ) {
       continue;
     }
 
@@ -726,7 +730,7 @@ void printScreen(TAOS * con, Command * cmd, SWords * match) {
     int size = 0;
     int width = 0;
     clearScreen(cmd->endOffset + prompt_size, cmd->screenOffset + prompt_size);
-    while(--count >= 0 && cmd->cursorOffset > 0) {
+    while (--count >= 0 && cmd->cursorOffset > 0) {
       getPrevCharSize(cmd->command, cmd->cursorOffset, &size, &width);
       memmove(cmd->command + cmd->cursorOffset - size, cmd->command + cmd->cursorOffset,
               cmd->commandSize - cmd->cursorOffset);
@@ -801,7 +805,7 @@ void createInputFromFirst(SWords* input, SWords * firstMatch) {
 
 // user press Tabkey again is named next
 void nextMatchCommand(TAOS * con, Command * cmd, SWords * firstMatch) {
-  if(firstMatch == NULL || firstMatch->head == NULL) {
+  if (firstMatch == NULL || firstMatch->head == NULL) {
     return ;
   }
   SWords* input = (SWords *)malloc(sizeof(SWords));
@@ -820,7 +824,7 @@ void nextMatchCommand(TAOS * con, Command * cmd, SWords * firstMatch) {
     firstMatchIndex = -1;
     curMatchIndex   = -1;
     match = matchCommand(input, false);
-    if(match == NULL) {
+    if (match == NULL) {
       freeCommand(input);
       return ;
     }
@@ -830,7 +834,7 @@ void nextMatchCommand(TAOS * con, Command * cmd, SWords * firstMatch) {
   printScreen(con, cmd, match);
 
   // free
-  if(input->source) {
+  if (input->source) {
     free(input->source);
     input->source = NULL;
   }
@@ -845,7 +849,7 @@ void showHelp(TAOS * con, Command * cmd) {
 // main key press tab
 void pressTabKey(TAOS * con, Command * cmd) {
   // check 
-  if(cmd->commandSize == 0) { 
+  if (cmd->commandSize == 0) { 
     // empty
     showHelp(con, cmd);
     return ;
@@ -872,4 +876,9 @@ void pressOtherKey(char c) {
   // var names
   cursorVar = -1;
   varMode = false;
+
+  if (lastMatch) {
+    freeMatch(lastMatch);
+    lastMatch = NULL;
+  }
 }

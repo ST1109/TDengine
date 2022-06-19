@@ -26,10 +26,9 @@
 #define CHAR_CNT   (LAST_ASCII - FIRST_ASCII + 1)
 #define MAX_WORD_LEN 256 // max insert word length
 
-#define PTR_END  (STireNode* )(-1)
-
 typedef struct STireNode {
     struct STireNode* d[CHAR_CNT];
+    bool   end; // record end flag  
 }STireNode;
 
 typedef struct STire {

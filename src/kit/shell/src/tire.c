@@ -29,11 +29,11 @@ STire* createTire() {
 
 // free tire node
 void freeTireNode(STireNode* node) {
-    if(node == NULL || node == PTR_END)
+    if (node == NULL)
        return ;
   
     // nest free sub node on array d 
-    for(int i = 0; i < CHAR_CNT; i++) {
+    for (int i = 0; i < CHAR_CNT; i++) {
         freeTireNode(node->d[i]);
     }
 
@@ -44,7 +44,7 @@ void freeTireNode(STireNode* node) {
 // destroy prefix search tree
 void freeTire(STire* tire) {
     // free nodes
-    for(int i = 0; i < CHAR_CNT; i++) {
+    for (int i = 0; i < CHAR_CNT; i++) {
         freeTireNode(tire->root.d[i]);
     }
 
@@ -56,40 +56,23 @@ void freeTire(STire* tire) {
 bool insertWord(STire* tire, char* word) {
     int m  = 0;
     int len = strlen(word);
-    if(len >= MAX_WORD_LEN) {
+    if (len >= MAX_WORD_LEN) {
         return false;
     }
 
     STireNode** node = (STireNode** )&tire->root.d;
-    for(int i = 0; i < len; i++) {
+    for (int i = 0; i < len; i++) {
         m = word[i] - FIRST_ASCII;
-        if(m < 0 || m >= CHAR_CNT) {
+        if (m < 0 || m >= CHAR_CNT) {
             return false;
         }
 
         if (node[m] == NULL) {
-            // no set value
-            if(i != len - 1) {
-                // not end char, malloc new node
-                STireNode* p = (STireNode* )tmalloc(sizeof(STireNode));
-                memset(p, 0, sizeof(STireNode));
-                node[m] = p;
-            } else {
-                // is end char, change NULL to PTR_END
-                node[m] = PTR_END;
-                break;
-            }
-        }else if (node[m] == PTR_END) {
-            // set end by previous word 
-            if(i != len - 1) {
-                // current word is large than previous, malloc new node
-                STireNode* p = (STireNode* )tmalloc(sizeof(STireNode));
-                memset(p, 0, sizeof(STireNode));
-                node[m] = p;
-            } else {
-                // current word same with previous, do nothing
-                break;
-            }
+            // no pointer
+            STireNode* p = (STireNode* )tmalloc(sizeof(STireNode));
+            memset(p, 0, sizeof(STireNode));
+            p->end = (i == len - 1); // end flag
+            node[m] = p;
         } else {
             // not null, do nothing
         }
@@ -110,7 +93,7 @@ void addWordToMatch(SMatch* match, char* word){
     strcpy(node->word, word);
 
     // append to match
-    if(match->head == NULL) {
+    if (match->head == NULL) {
         match->head = match->tail = node;
     } else {
         match->tail->next = node;
@@ -124,19 +107,24 @@ void enumAllWords(STireNode** node,  char* prefix, SMatch* match) {
     STireNode * c;
     char word[CHAR_CNT];
     int len = strlen(prefix);
-    for(int i = 0; i < CHAR_CNT; i++) {
+    for (int i = 0; i < CHAR_CNT; i++) {
         c = node[i];
         
-        // combine word string
-        memset(word, 0, sizeof(word));
-        strcpy(word, prefix);
-        word[len] =  FIRST_ASCII + i; // append current char
+        if (c == NULL) {
+            // chain end node
+           continue; 
+        } else {
+            // combine word string
+            memset(word, 0, sizeof(word));
+            strcpy(word, prefix);
+            word[len] =  FIRST_ASCII + i; // append current char
 
-        if(c == PTR_END) {
-            // str end, append to match list
-            addWordToMatch(match, word); 
-        } else if(c != NULL) {
-            // have sub nodes, continue enum
+            // chain middle node
+            if (c->end) {
+                // have end flag
+                addWordToMatch(match, word); 
+            }
+            // nested call next layer
             enumAllWords((STireNode** )&c->d, word, match);
         }
     }
@@ -148,46 +136,38 @@ SMatch* matchPrefix(STire* tire, char* prefix, SMatch* match) {
     int m  = 0;
     STireNode* c = 0;
     int len = strlen(prefix);
-    if(len >= MAX_WORD_LEN) {
+    if (len >= MAX_WORD_LEN) {
         return NULL;
     }
 
     STireNode** node = (STireNode** )&tire->root.d;
-    for(int i = 0; i < len; i++) {
+    for (int i = 0; i < len; i++) {
         m = prefix[i] - FIRST_ASCII;
-        if(m < 0 || m >= CHAR_CNT) {
+        if (m < 0 || m >= CHAR_CNT) {
             return NULL;
         }
 
         // match
         c = node[m];
         if (c == NULL) {
-            // no match 
+            // arrive end
             break;
-        }else if (c == PTR_END) {
-            // match 
-            if(i == len - 1) {
-                // match whole word
-            } else {
-                // match part, but prefix behind can't matched, so no match
-                break;
-            }
-        } else {
-            // previous matched, need check prefix is end
-            if(i == len - 1) {
-                // malloc match if not pass by param pMatch
-                if(root == NULL) {                        
-                    root = (SMatch* )tmalloc(sizeof(SMatch));
-                    memset(root, 0, sizeof(SMatch));
-                    strcpy(root->pre, prefix);
-                }
+        }
 
-                // prefix is match to end char
-                enumAllWords((STireNode** )&c->d, prefix, root);
-            } else {
-                // move to next node continue match
-                node = (STireNode** )&c->d;
-            }         
+        // previous items already matched
+        if (i == len - 1) {
+            // malloc match if not pass by param match
+            if (root == NULL) {                        
+                root = (SMatch* )tmalloc(sizeof(SMatch));
+                memset(root, 0, sizeof(SMatch));
+                strcpy(root->pre, prefix);
+            }
+
+            // prefix is match to end char
+            enumAllWords((STireNode** )&c->d, prefix, root);
+        } else {
+            // move to next node continue match
+            node = (STireNode** )&c->d;
         }
     }
 
@@ -204,12 +184,12 @@ SMatch* enumAll(STire* tire) {
     memset(match, 0, sizeof(SMatch));
     
     // enum first layer
-    for(int i = 0; i < CHAR_CNT; i++) {
+    for (int i = 0; i < CHAR_CNT; i++) {
         pre[0] = FIRST_ASCII + i;
         
         // each node
         c = tire->root.d[i];
-        if (c == NULL || c ==  PTR_END) {
+        if (c == NULL) {
             // this branch no data
             continue;
         }
@@ -219,7 +199,7 @@ SMatch* enumAll(STire* tire) {
     }
 
     // return if need
-    if(match->count == 0) {
+    if (match->count == 0) {
         freeMatch(match);
         match = NULL;
     }
