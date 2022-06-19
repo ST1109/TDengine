@@ -16,6 +16,8 @@
 #ifndef __SHELL_AUTO__
 #define __SHELL_AUTO__
 
+#define TAB_KEY 0x09
+
 // press tab key
 void pressTabKey(TAOS * con, Command * cmd);
 
@@ -27,5 +29,8 @@ bool shellAutoInit();
 
 // exit shell auto funciton, shell exit call once
 void shellAutoExit();
+
+// callback autotab module
+void callbackAutoTab(char* sqlstr, TAOS* pSql);
 
 #endif

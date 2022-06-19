@@ -259,7 +259,7 @@ int32_t shellReadCommand(TAOS *con, char *command) {
       }
       insertChar(&cmd, utf8_array, count);
       pressOtherKey(c);
-    } else if (c == 0x09) {
+    } else if (c == TAB_KEY) {
       // press TAB key
       pressTabKey(con, &cmd);
     } else if (c < '\033') {

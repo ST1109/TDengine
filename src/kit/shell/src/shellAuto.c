@@ -96,7 +96,7 @@ SWords shellCommands[] = {
   {"show dnodes;", 0, 0, NULL},
   {"show functions;", 0, 0, NULL},
   {"show modules;", 0, 0, NULL},
-  {"show mondes;", 0, 0, NULL},
+  {"show mnodes;", 0, 0, NULL},
   {"show queries;", 0, 0, NULL},
   {"show stables;", 0, 0, NULL},
   {"show stables like", 0, 0, NULL},
@@ -118,6 +118,7 @@ int32_t firstMatchIndex = -1; // first match shellCommands index
 int32_t lastMatchIndex  = -1; // last match shellCommands index
 int32_t curMatchIndex   = -1; // current match shellCommands index
 int32_t lastWordBytes   = -1; // printShow last word length 
+bool    waitAutoFill    = false;
 
 
 //
@@ -145,7 +146,7 @@ char varTypes[WT_VAR_CNT][64] = {
 char varSqls[WT_VAR_CNT][64] = {
   "show databases;",
   "show stables;",
-  "show table;"
+  "show tables;"
 };
 
 
@@ -157,6 +158,7 @@ bool varMode = false; // enter var names list mode
 char varName[1024] = "";
 
 TAOS* varCon = NULL;
+Command* varCmd = NULL;
 SMatch* lastMatch = NULL; // save last match result 
 
 
@@ -182,7 +184,7 @@ SWord * atWord(SWords * command, int32_t index) {
 
 int wordType(const char* p, int32_t len) {
   for (int i = 0; i < WT_VAR_CNT; i++) {
-    if (strcmp(p, varTypes[i]) == 0)
+    if (strncmp(p, varTypes[i], len) == 0)
         return i;
   }
   return WT_TEXT;
@@ -201,8 +203,7 @@ SWord * addWord(const char* p, int32_t len, bool pattern) {
   } else {
     word->type = WT_TEXT;
   }
-     
-  
+
   return word;
 }
 
@@ -392,12 +393,12 @@ void putBackAutoPtr(int type, STire* tire) {
 //
 
 #define MAX_CACHED_CNT 100000 // max cached rows 10w
-// write sql result to var name
-void writeVarNames(int type, TAOS_RES* tres) {
+// write sql result to var name, return write rows cnt
+int writeVarNames(int type, TAOS_RES* tres) {
   // fetch row 
   TAOS_ROW row = taos_fetch_row(tres);
   if (row == NULL) {
-    return ;
+    return 0;
   }
 
   // sql
@@ -408,7 +409,7 @@ void writeVarNames(int type, TAOS_RES* tres) {
 
   // check type
   if (colIdx >= num_fields || fields[colIdx].type != TSDB_DATA_TYPE_BINARY) {
-    return ;
+    return 0;
   }
 
   // create new tires
@@ -434,8 +435,11 @@ void writeVarNames(int type, TAOS_RES* tres) {
 
   // replace old tire
   setNewAuotPtr(type, tire);
+
+  return numOfRows;
 }
 
+void firstMatchCommand(TAOS * con, Command * cmd);
 // obtain var thread from db server 
 void* varObtainThread(void* param) {
   int type = *(int* )param;
@@ -452,10 +456,16 @@ void* varObtainThread(void* param) {
   }
 
   // write var names from pSql
-  writeVarNames(type, pSql);
+  int cnt = writeVarNames(type, pSql);
 
   // free sql
   taos_free_result(pSql);
+
+  // check need call auto tab 
+  if (cnt > 0 && waitAutoFill) {
+    // press tab key by program
+    firstMatchCommand(varCon, varCmd);
+  }
 
   return NULL;
 }
@@ -548,6 +558,7 @@ char* tireSearchWord(int type, char* pre) {
 
   // check need obtain from server
   if (tires[type] == NULL) {
+    waitAutoFill = true;
     // need async obtain var names from db sever
     if (threads[type] != NULL) {
       if (taosThreadRunning(threads[type])) {
@@ -857,6 +868,7 @@ void pressTabKey(TAOS * con, Command * cmd) {
 
   // save connection to global
   varCon = con;
+  varCmd = cmd;
 
   if (firstMatchIndex == -1) {
     firstMatchCommand(con, cmd);
@@ -874,11 +886,37 @@ void pressOtherKey(char c) {
   lastWordBytes   = -1;
 
   // var names
-  cursorVar = -1;
-  varMode = false;
+  cursorVar    = -1;
+  varMode      = false;
+  waitAutoFill = false;
 
   if (lastMatch) {
     freeMatch(lastMatch);
     lastMatch = NULL;
+  }
+}
+
+// callback autotab module after shell sql execute
+void callbackAutoTab(char* sqlstr, TAOS* pSql) {
+  // if sqlstr length > 32, return 
+  int i =0;
+  while(sqlstr[i++] != 0) {
+    if (i > 32) {
+      return ;
+    }
+  }
+
+  char *p = sqlstr;
+  while(p[0] == ' ') {
+    p++;
+  }
+
+  int len;
+  for (i = 0; i < WT_VAR_CNT; i ++) {
+    len = strlen(varSqls[i]) - 1;
+    if (strncmp(p, varSqls[i], len) == 0) {
+      writeVarNames(i, pSql);
+      break;
+    }
   }
 }

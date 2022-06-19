@@ -27,6 +27,7 @@
 #include "tglobal.h"
 #include "tsclient.h"
 #include "cJSON.h"
+#include "shellAuto.h"
 
 #include <regex.h>
 
