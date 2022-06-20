@@ -624,7 +624,9 @@ int32_t syncNodePropose(SSyncNode* pSyncNode, const SRpcMsg* pMsg, bool isWeak) 
     syncClientRequest2RpcMsg(pSyncMsg, &rpcMsg);
 
     if (pSyncNode->replicaNum == 1 && syncUtilUserCommit(pMsg->msgType) && pSyncNode->vgId != 1) {
-      syncNodeOnClientRequestCb(pSyncNode, pSyncMsg);
+      // syncNodeOnClientRequestCb(pSyncNode, pSyncMsg);
+
+      rpcFreeCont(rpcMsg.pCont);
       syncRespMgrDel(pSyncNode->pSyncRespMgr, seqNum);
       ret = 1;
 
@@ -2058,6 +2060,10 @@ int32_t syncNodeOnPingReplyCb(SSyncNode* ths, SyncPingReply* pMsg) {
 int32_t syncNodeOnClientRequestCb(SSyncNode* ths, SyncClientRequest* pMsg) {
   int32_t ret = 0;
   syncClientRequestLog2("==syncNodeOnClientRequestCb==", pMsg);
+
+  sInfo("vgId:%d sync event %s commitIndex:%ld currentTerm:%lu syncNodeOnClientRequestCb msgType:%s,%d", ths->vgId,
+        syncUtilState2String(ths->state), ths->commitIndex, ths->pRaftStore->currentTerm, TMSG_INFO(pMsg->msgType),
+        pMsg->msgType);
 
   SyncIndex       index = ths->pLogStore->syncLogWriteIndex(ths->pLogStore);
   SyncTerm        term = ths->pRaftStore->currentTerm;

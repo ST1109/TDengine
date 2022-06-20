@@ -161,9 +161,9 @@ static int32_t raftLogAppendEntry(struct SSyncLogStore* pLogStore, SSyncRaftEntr
     ASSERT(0);
   }
 
-  walFsync(pWal, true);
+  // walFsync(pWal, true);
 
-  sDebug(
+  sInfo(
       "vgId:%d sync event %s commitIndex:%ld currentTerm:%lu write index:%ld, isStandBy:%d, msgType:%s,%d, "
       "originalRpcType:%s,%d",
       pData->pSyncNode->vgId, syncUtilState2String(pData->pSyncNode->state), pData->pSyncNode->commitIndex,
@@ -324,7 +324,7 @@ int32_t logStoreAppendEntry(SSyncLogStore* pLogStore, SSyncRaftEntry* pEntry) {
 
   walFsync(pWal, true);
 
-  sDebug(
+  sInfo(
       "vgId:%d sync event %s commitIndex:%ld currentTerm:%lu old write index:%ld, isStandBy:%d, msgType:%s,%d, "
       "originalRpcType:%s,%d",
       pData->pSyncNode->vgId, syncUtilState2String(pData->pSyncNode->state), pData->pSyncNode->commitIndex,
@@ -490,7 +490,7 @@ cJSON* logStore2Json(SSyncLogStore* pLogStore) {
 }
 
 char* logStore2Str(SSyncLogStore* pLogStore) {
-  cJSON* pJson = logStore2Json(pLogStore);
+  cJSON* pJson = logStoreSimple2Json(pLogStore);
   char*  serialized = cJSON_Print(pJson);
   cJSON_Delete(pJson);
   return serialized;
