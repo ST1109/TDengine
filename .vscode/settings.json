@@ -1,0 +1,14 @@
+{
+    "files.associations": {
+        "vnodecfg.h": "c",
+        "__config": "c",
+        "fstream": "c",
+        "future": "c",
+        "ios": "c",
+        "iosfwd": "c",
+        "locale": "c",
+        "optional": "c",
+        "string": "c",
+        "utility": "c"
+    }
+}

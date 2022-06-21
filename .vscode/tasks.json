@@ -1,0 +1,159 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "(build) cmake build",
+			"command": "build",
+			"type": "cmake",
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			},
+			"problemMatcher": [
+				"$gcc"
+			]
+		},
+		{
+			"label": "(env) kill taosd",
+			"type": "shell",
+			"command": "killall",
+			"args": [
+				"--quiet",
+				"taosd"
+			],
+			"presentation": {
+				"reveal": "never",
+				"revealProblems": "never",
+				"close": true
+			}
+		},
+		{
+			"label": "(env) set node1",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"${workspaceFolder}/.vscode/scripts/setEnv.sh",
+				"${workspaceFolder}",
+				"1"
+			],
+			"presentation": {
+				"reveal": "silent",
+				"revealProblems": "onProblem",
+				"close": true
+			}
+		},
+		{
+			"label": "(run) node1",
+			"type": "shell",
+			"command": "${workspaceFolder}/debug/build/bin/taosd",
+			"args": [
+				"-c",
+				"${workspaceFolder}/sim/dnode1/cfg"
+			]
+		},
+		{
+			"label": "(run) node1 clear",
+			"type": "shell",
+			"command": "${workspaceFolder}/debug/build/bin/taosd",
+			"args": [
+				"-c",
+				"${workspaceFolder}/sim/dnode1/cfg"
+			],
+			"dependsOn": [
+				"(env) set node1"
+			]
+		},
+		{
+			"label": "(run) node1 valgrind",
+			"type": "shell",
+			"command": "valgrind",
+			"args": [
+				"--log-file=\"valgrind.log\"",
+				"--tool=memcheck",
+				"--leak-check=full",
+				"--show-reachable=yes",
+				"--track-origins=yes",
+				"--show-leak-kinds=all",
+				"-v",
+				"${workspaceFolder}/debug/build/bin/taosd",
+				"-c",
+				"${workspaceFolder}/sim/dnode1/cfg"
+			]
+		},
+		{
+			"label": "(run) shell",
+			"type": "shell",
+			"command": "${workspaceFolder}/debug/build/bin/taos",
+			"args": [
+				"-c",
+				"${workspaceFolder}/sim/dnode1/cfg"
+			]
+		},
+		{
+			"label": "(run) shell script",
+			"type": "shell",
+			"command": "${workspaceFolder}/debug/build/bin/taos",
+			"args": [
+				"-c",
+				"${workspaceFolder}/sim/dnode1/cfg",
+				"-f",
+				"sql"
+			],
+			"problemMatcher": [],
+			"group": {
+				"kind": "test",
+				"isDefault": true
+			}
+		},
+		{
+			"label": "(test) tjenkins",
+			"type": "shell",
+			"command": "${workspaceFolder}/tests/script/tjenkins",
+			"args": [
+				"-f",
+				"jenkins/basic.txt",
+				"-p"
+			],
+			"options": {
+				"cwd": "${workspaceFolder}/tests/script"
+			},
+			"dependsOn": [
+				"(build) cmake build"
+			],
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "(test) tjenkins kill",
+			"type": "shell",
+			"command": "killall",
+			"args": [
+				"tjenkins"
+			]
+		},
+		{
+			"label": "(test) create table",
+			"type": "shell",
+			"command": "${workspaceFolder}/debug/build/bin/create_table",
+			"args": [
+				"-c",
+				"${workspaceFolder}/sim/dnode1/cfg",
+				"-t",
+				"12",
+				"-n",
+				"10000000",
+				"-v",
+				"20",
+				"-b",
+				"200"
+			],
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "(git) pull from 3.0",
+			"type": "shell",
+			"command": "git pull origin 3.0"
+		}
+	]
+}
