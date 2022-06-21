@@ -316,12 +316,20 @@ int64_t taosCloseFile(TdFilePtr *ppFile) {
     (*ppFile)->fp = NULL;
   }
   if ((*ppFile)->fd >= 0) {
+
+#if 0
+
 #ifdef WINDOWS
     HANDLE h = (HANDLE)_get_osfhandle((*ppFile)->fd);
     !FlushFileBuffers(h);
 #else
     fsync((*ppFile)->fd);
 #endif
+
+
+#endif
+
+
     close((*ppFile)->fd);
     (*ppFile)->fd = -1;
   }
