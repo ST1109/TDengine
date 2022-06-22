@@ -59,6 +59,7 @@ enum {
   CTG_OP_UPDATE_VG_EPSET,
   CTG_OP_UPDATE_TB_INDEX,
   CTG_OP_DROP_TB_INDEX,
+  CTG_OP_CLEAR_CACHE,
   CTG_OP_MAX
 };
 
@@ -70,10 +71,17 @@ typedef enum {
   CTG_TASK_GET_TB_META,
   CTG_TASK_GET_TB_HASH,
   CTG_TASK_GET_TB_INDEX,
+  CTG_TASK_GET_TB_CFG,
   CTG_TASK_GET_INDEX,
   CTG_TASK_GET_UDF,
   CTG_TASK_GET_USER,
 } CTG_TASK_TYPE;
+
+typedef enum {
+  CTG_TASK_LAUNCHED = 1,
+  CTG_TASK_DONE,
+} CTG_TASK_STATUS;
+
 
 typedef struct SCtgDebug {
   bool     lockEnable;
@@ -100,6 +108,12 @@ typedef struct SCtgTbMetaCtx {
 typedef struct SCtgTbIndexCtx {
   SName* pName;
 } SCtgTbIndexCtx;
+
+typedef struct SCtgTbCfgCtx {
+  SName*       pName;
+  int32_t      tbType;
+  SVgroupInfo* pVgInfo;
+} SCtgTbCfgCtx;
 
 typedef struct SCtgDbVgCtx {
   char dbFName[TSDB_DB_FNAME_LEN];
@@ -189,7 +203,9 @@ typedef struct SCtgJob {
   SArray*           pTasks;
   int32_t           taskDone;
   SMetaData         jobRes;
-
+  int32_t           taskIdx;
+  SRWLatch          taskLock;
+  
   uint64_t          queryId;
   SCatalog*         pCtg; 
   SRequestConnInfo  conn;
@@ -205,6 +221,7 @@ typedef struct SCtgJob {
   int32_t           userNum;
   int32_t           dbInfoNum;
   int32_t           tbIndexNum;
+  int32_t           tbCfgNum;
 } SCtgJob;
 
 typedef struct SCtgMsgCtx {
@@ -214,24 +231,44 @@ typedef struct SCtgMsgCtx {
   char* target;
 } SCtgMsgCtx;
 
+typedef struct SCtgTask SCtgTask;
+typedef int32_t (*ctgSubTaskCbFp)(SCtgTask*);
+
+typedef struct SCtgSubRes {
+  CTG_TASK_TYPE  type;
+  int32_t        code;
+  void*          res;
+  ctgSubTaskCbFp fp;
+} SCtgSubRes;
+
 typedef struct SCtgTask {
-  CTG_TASK_TYPE type;
-  int32_t       taskId;
-  SCtgJob*      pJob;
-  void*         taskCtx;
-  SCtgMsgCtx    msgCtx;
-  int32_t       code;
-  void*         res;
+  CTG_TASK_TYPE   type;
+  int32_t         taskId;
+  SCtgJob*        pJob;
+  void*           taskCtx;
+  SCtgMsgCtx      msgCtx;
+  int32_t         code;
+  void*           res;
+  CTG_TASK_STATUS status;
+  SRWLatch        lock;
+  SArray*         pParents;
+  SCtgSubRes      subRes;
 } SCtgTask;
 
+typedef int32_t (*ctgInitTaskFp)(SCtgJob*, int32_t, void*);
 typedef int32_t (*ctgLanchTaskFp)(SCtgTask*);
 typedef int32_t (*ctgHandleTaskMsgRspFp)(SCtgTask*, int32_t, const SDataBuf *, int32_t);
 typedef int32_t (*ctgDumpTaskResFp)(SCtgTask*);
+typedef int32_t (*ctgCloneTaskResFp)(SCtgTask*, void**);
+typedef int32_t (*ctgCompTaskFp)(SCtgTask*, void*, bool*);
 
 typedef struct SCtgAsyncFps {
-  ctgLanchTaskFp launchFp;
+  ctgInitTaskFp         initFp;
+  ctgLanchTaskFp        launchFp;
   ctgHandleTaskMsgRspFp handleRspFp;
-  ctgDumpTaskResFp dumpResFp;
+  ctgDumpTaskResFp      dumpResFp;
+  ctgCompTaskFp         compFp;
+  ctgCloneTaskResFp     cloneFp;
 } SCtgAsyncFps;
 
 typedef struct SCtgApiStat {
@@ -327,6 +364,10 @@ typedef struct SCtgDropTbIndexMsg {
   char         dbFName[TSDB_DB_FNAME_LEN];
   char         tbName[TSDB_TABLE_NAME_LEN];
 } SCtgDropTbIndexMsg;
+
+typedef struct SCtgClearCacheMsg {
+  SCatalog*    pCtg;
+} SCtgClearCacheMsg;
 
 typedef struct SCtgUpdateEpsetMsg {
   SCatalog* pCtg;
@@ -471,8 +512,8 @@ typedef struct SCtgOperation {
 #define CTG_API_LEAVE(c) do { int32_t __code = c; CTG_UNLOCK(CTG_READ, &gCtgMgmt.lock); CTG_API_DEBUG("CTG API leave %s", __FUNCTION__); CTG_RET(__code); } while (0)
 #define CTG_API_ENTER() do { CTG_API_DEBUG("CTG API enter %s", __FUNCTION__); CTG_LOCK(CTG_READ, &gCtgMgmt.lock); if (atomic_load_8((int8_t*)&gCtgMgmt.exit)) { CTG_API_LEAVE(TSDB_CODE_CTG_OUT_OF_SERVICE); }  } while (0)
 
-void ctgdShowTableMeta(SCatalog* pCtg, const char *tbName, STableMeta* p);
-void ctgdShowClusterCache(SCatalog* pCtg);
+void    ctgdShowTableMeta(SCatalog* pCtg, const char *tbName, STableMeta* p);
+void    ctgdShowClusterCache(SCatalog* pCtg);
 int32_t ctgdShowCacheInfo(void);
 
 int32_t ctgRemoveTbMetaFromCache(SCatalog* pCtg, SName* pTableName, bool syncReq);
@@ -487,8 +528,8 @@ int32_t ctgOpDropTbMeta(SCtgCacheOperation *action);
 int32_t ctgOpUpdateUser(SCtgCacheOperation *action);
 int32_t ctgOpUpdateEpset(SCtgCacheOperation *operation);
 int32_t ctgAcquireVgInfoFromCache(SCatalog* pCtg, const char *dbFName, SCtgDBCache **pCache);
-void ctgReleaseDBCache(SCatalog *pCtg, SCtgDBCache *dbCache);
-void ctgRUnlockVgInfo(SCtgDBCache *dbCache);
+void    ctgReleaseDBCache(SCatalog *pCtg, SCtgDBCache *dbCache);
+void    ctgRUnlockVgInfo(SCtgDBCache *dbCache);
 int32_t ctgTbMetaExistInCache(SCatalog* pCtg, char *dbFName, char* tbName, int32_t *exist);
 int32_t ctgReadTbMetaFromCache(SCatalog* pCtg, SCtgTbMetaCtx* ctx, STableMeta** pTableMeta);
 int32_t ctgReadTbVerFromCache(SCatalog *pCtg, SName *pTableName, int32_t *sver, int32_t *tver, int32_t *tbType, uint64_t *suid, char *stbName);
@@ -502,17 +543,22 @@ int32_t ctgUpdateTbMetaEnqueue(SCatalog* pCtg, STableMetaOutput *output, bool sy
 int32_t ctgUpdateUserEnqueue(SCatalog* pCtg, SGetUserAuthRsp *pAuth, bool syncReq);
 int32_t ctgUpdateVgEpsetEnqueue(SCatalog* pCtg, char *dbFName, int32_t vgId, SEpSet* pEpSet);
 int32_t ctgUpdateTbIndexEnqueue(SCatalog* pCtg, STableIndex **pIndex, bool syncOp);
+int32_t ctgClearCacheEnqueue(SCatalog* pCtg, bool syncOp);
 int32_t ctgMetaRentInit(SCtgRentMgmt *mgmt, uint32_t rentSec, int8_t type);
 int32_t ctgMetaRentAdd(SCtgRentMgmt *mgmt, void *meta, int64_t id, int32_t size);
 int32_t ctgMetaRentGet(SCtgRentMgmt *mgmt, void **res, uint32_t *num, int32_t size);
 int32_t ctgUpdateTbMetaToCache(SCatalog* pCtg, STableMetaOutput* pOut, bool syncReq);
 int32_t ctgStartUpdateThread();
 int32_t ctgRelaunchGetTbMetaTask(SCtgTask *pTask);
-void ctgReleaseVgInfoToCache(SCatalog* pCtg, SCtgDBCache *dbCache);
+void    ctgReleaseVgInfoToCache(SCatalog* pCtg, SCtgDBCache *dbCache);
 int32_t ctgReadTbIndexFromCache(SCatalog* pCtg, SName* pTableName, SArray** pRes);
 int32_t ctgDropTbIndexEnqueue(SCatalog* pCtg, SName* pName, bool syncOp);
 int32_t ctgOpDropTbIndex(SCtgCacheOperation *operation);
 int32_t ctgOpUpdateTbIndex(SCtgCacheOperation *operation);
+int32_t ctgOpClearCache(SCtgCacheOperation *operation);
+int32_t ctgReadTbTypeFromCache(SCatalog* pCtg, char* dbFName, char *tableName, int32_t *tbType);
+int32_t ctgGetTbHashVgroupFromCache(SCatalog *pCtg, const SName *pTableName, SVgroupInfo **pVgroup);
+
 
 
 
@@ -527,30 +573,35 @@ int32_t ctgGetUserDbAuthFromMnode(SCatalog* pCtg, SRequestConnInfo *pConn, const
 int32_t ctgGetTbMetaFromMnodeImpl(SCatalog* pCtg, SRequestConnInfo *pConn, char *dbFName, char* tbName, STableMetaOutput* out, SCtgTask* pTask);
 int32_t ctgGetTbMetaFromMnode(SCatalog* pCtg, SRequestConnInfo *pConn, const SName* pTableName, STableMetaOutput* out, SCtgTask* pTask);
 int32_t ctgGetTbMetaFromVnode(SCatalog* pCtg, SRequestConnInfo *pConn, const SName* pTableName, SVgroupInfo *vgroupInfo, STableMetaOutput* out, SCtgTask* pTask);
+int32_t ctgGetTableCfgFromVnode(SCatalog* pCtg, SRequestConnInfo *pConn, const SName* pTableName, SVgroupInfo *vgroupInfo, STableCfg **out, SCtgTask* pTask);
+int32_t ctgGetTableCfgFromMnode(SCatalog* pCtg, SRequestConnInfo *pConn, const SName* pTableName, STableCfg **out, SCtgTask* pTask);
 
 int32_t ctgInitJob(SCatalog* pCtg, SRequestConnInfo *pConn, SCtgJob** job, uint64_t reqId, const SCatalogReq* pReq, catalogCallback fp, void* param, int32_t* taskNum);
 int32_t ctgLaunchJob(SCtgJob *pJob);
 int32_t ctgMakeAsyncRes(SCtgJob *pJob);
+int32_t ctgLaunchSubTask(SCtgTask *pTask, CTG_TASK_TYPE type, ctgSubTaskCbFp fp, void* param);
+int32_t ctgGetTbCfgCb(SCtgTask *pTask);
 
 int32_t ctgCloneVgInfo(SDBVgInfo *src, SDBVgInfo **dst);
 int32_t ctgCloneMetaOutput(STableMetaOutput *output, STableMetaOutput **pOutput);
 int32_t ctgGenerateVgList(SCatalog *pCtg, SHashObj *vgHash, SArray** pList);
-void ctgFreeJob(void* job);
-void ctgFreeHandle(SCatalog* pCtg);
-void ctgFreeVgInfo(SDBVgInfo *vgInfo);
+void    ctgFreeJob(void* job);
+void    ctgFreeHandle(SCatalog* pCtg);
+void    ctgFreeVgInfo(SDBVgInfo *vgInfo);
 int32_t ctgGetVgInfoFromHashValue(SCatalog *pCtg, SDBVgInfo *dbInfo, const SName *pTableName, SVgroupInfo *pVgroup);
-void ctgResetTbMetaTask(SCtgTask* pTask);
-void ctgFreeDbCache(SCtgDBCache *dbCache);
+void    ctgResetTbMetaTask(SCtgTask* pTask);
+void    ctgFreeDbCache(SCtgDBCache *dbCache);
 int32_t ctgStbVersionSortCompare(const void* key1, const void* key2);
 int32_t ctgDbVgVersionSortCompare(const void* key1, const void* key2);
 int32_t ctgStbVersionSearchCompare(const void* key1, const void* key2);
 int32_t ctgDbVgVersionSearchCompare(const void* key1, const void* key2);
-void ctgFreeSTableMetaOutput(STableMetaOutput* pOutput);
+void    ctgFreeSTableMetaOutput(STableMetaOutput* pOutput);
 int32_t ctgUpdateMsgCtx(SCtgMsgCtx* pCtx, int32_t reqType, void* out, char* target);
-char *ctgTaskTypeStr(CTG_TASK_TYPE type);
+char *  ctgTaskTypeStr(CTG_TASK_TYPE type);
 int32_t ctgUpdateSendTargetInfo(SMsgSendInfo *pMsgSendInfo, int32_t msgType, SCtgTask* pTask);
 int32_t ctgCloneTableIndex(SArray* pIndex, SArray** pRes);
-void ctgFreeSTableIndex(void *info);
+void    ctgFreeSTableIndex(void *info);
+void    ctgClearSubTaskRes(SCtgSubRes *pRes);
 
 
 extern SCatalogMgmt gCtgMgmt;

@@ -34,7 +34,9 @@ enum {
 enum {
   TMQ_MSG_TYPE__DUMMY = 0,
   TMQ_MSG_TYPE__POLL_RSP,
+  TMQ_MSG_TYPE__POLL_META_RSP,
   TMQ_MSG_TYPE__EP_RSP,
+  TMQ_MSG_TYPE__END_RSP,
 };
 
 typedef enum EStreamType {
@@ -43,6 +45,7 @@ typedef enum EStreamType {
   STREAM_REPROCESS,
   STREAM_INVALID,
   STREAM_GET_ALL,
+  STREAM_DELETE,
 } EStreamType;
 
 typedef struct {

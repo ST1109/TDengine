@@ -20,6 +20,7 @@
 extern "C" {
 #endif
 
+#include "catalog.h"
 #include "parser.h"
 #include "planner.h"
 #include "query.h"
@@ -50,10 +51,12 @@ extern "C" {
 enum {
   RES_TYPE__QUERY = 1,
   RES_TYPE__TMQ,
+  RES_TYPE__TMQ_META,
 };
 
-#define TD_RES_QUERY(res) (*(int8_t*)res == RES_TYPE__QUERY)
-#define TD_RES_TMQ(res)   (*(int8_t*)res == RES_TYPE__TMQ)
+#define TD_RES_QUERY(res)    (*(int8_t*)res == RES_TYPE__QUERY)
+#define TD_RES_TMQ(res)      (*(int8_t*)res == RES_TYPE__TMQ)
+#define TD_RES_TMQ_META(res) (*(int8_t*)res == RES_TYPE__TMQ_META)
 
 typedef struct SAppInstInfo SAppInstInfo;
 
@@ -65,9 +68,9 @@ typedef struct {
   int64_t reportBytes;  // not implemented
   int64_t startTime;
   // ctl
-  SRWLatch lock;  // lock is used in serialization
+  SRWLatch      lock;  // lock is used in serialization
   SAppInstInfo* pAppInstInfo;
-  SHashObj* activeInfo;  // hash<SClientHbKey, SClientHbReq>
+  SHashObj*     activeInfo;  // hash<SClientHbKey, SClientHbReq>
 } SAppHbMgr;
 
 typedef int32_t (*FHbRspHandle)(SAppHbMgr* pAppHbMgr, SClientHbRsp* pRsp);
@@ -75,11 +78,13 @@ typedef int32_t (*FHbRspHandle)(SAppHbMgr* pAppHbMgr, SClientHbRsp* pRsp);
 typedef int32_t (*FHbReqHandle)(SClientHbKey* connKey, void* param, SClientHbReq* req);
 
 typedef struct {
-  int8_t inited;
+  int8_t  inited;
+  int64_t appId;
   // ctl
   int8_t        threadStop;
   TdThread      thread;
-  TdThreadMutex lock;       // used when app init and cleanup
+  TdThreadMutex lock;  // used when app init and cleanup
+  SHashObj*     appSummary;
   SArray*       appHbMgrs;  // SArray<SAppHbMgr*> one for each cluster
   FHbReqHandle  reqHandle[CONN_TYPE__MAX];
   FHbRspHandle  rspHandle[CONN_TYPE__MAX];
@@ -92,33 +97,20 @@ typedef struct SQueryExecMetric {
   int64_t rsp;     // receive response from server, us
 } SQueryExecMetric;
 
-typedef struct SInstanceSummary {
-  uint64_t numOfInsertsReq;
-  uint64_t numOfInsertRows;
-  uint64_t insertElapsedTime;
-  uint64_t insertBytes;  // submit to tsdb since launched.
-
-  uint64_t fetchBytes;
-  uint64_t queryElapsedTime;
-  uint64_t numOfSlowQueries;
-  uint64_t totalRequests;
-  uint64_t currentRequests;  // the number of SRequestObj
-} SInstanceSummary;
-
 typedef struct SHeartBeatInfo {
   void* pTimer;  // timer, used to send request msg to mnode
 } SHeartBeatInfo;
 
 struct SAppInstInfo {
-  int64_t          numOfConns;
-  SCorEpSet        mgmtEp;
-  TdThreadMutex    qnodeMutex;
-  SArray*          pQnodeList;
-  SInstanceSummary summary;
-  SList*           pConnList;  // STscObj linked list
-  uint64_t         clusterId;
-  void*            pTransporter;
-  SAppHbMgr*       pAppHbMgr;
+  int64_t            numOfConns;
+  SCorEpSet          mgmtEp;
+  TdThreadMutex      qnodeMutex;
+  SArray*            pQnodeList;
+  SAppClusterSummary summary;
+  SList*             pConnList;  // STscObj linked list
+  uint64_t           clusterId;
+  void*              pTransporter;
+  SAppHbMgr*         pAppHbMgr;
 };
 
 typedef struct SAppInfo {
@@ -139,7 +131,7 @@ typedef struct STscObj {
   int8_t        connType;
   int32_t       acctId;
   uint32_t      connId;
-  uint64_t      id;         // ref ID returned by taosAddRef
+  TAOS*         id;         // ref ID returned by taosAddRef
   TdThreadMutex mutex;      // used to protect the operation on db
   int32_t       numOfReqs;  // number of sqlObj bound to this connection
   SAppInstInfo* pAppInfo;
@@ -173,6 +165,7 @@ typedef struct SReqResultInfo {
   int32_t        precision;
   bool           convertUcs4;
   int32_t        payloadLen;
+  char*          convertJson;
 } SReqResultInfo;
 
 typedef struct SRequestSendRecvBody {
@@ -197,6 +190,14 @@ typedef struct {
   SReqResultInfo resInfo;
 } SMqRspObj;
 
+typedef struct {
+  int8_t     resType;
+  char       topic[TSDB_TOPIC_FNAME_LEN];
+  char       db[TSDB_DB_FNAME_LEN];
+  int32_t    vgId;
+  SMqMetaRsp metaRsp;
+} SMqMetaRspObj;
+
 typedef struct SRequestObj {
   int8_t               resType;  // query or tmq
   uint64_t             requestId;
@@ -215,8 +216,9 @@ typedef struct SRequestObj {
   SRequestSendRecvBody body;
   bool                 stableQuery;
 
-  uint32_t             prevCode; //previous error code: todo refactor, add update flag for catalog
-  uint32_t             retry;
+  bool     killed;
+  uint32_t prevCode;  // previous error code: todo refactor, add update flag for catalog
+  uint32_t retry;
 } SRequestObj;
 
 typedef struct SSyncQueryParam {
@@ -224,15 +226,15 @@ typedef struct SSyncQueryParam {
   SRequestObj* pRequest;
 } SSyncQueryParam;
 
-void*   doAsyncFetchRows(SRequestObj* pRequest, bool setupOneRowPtr, bool convertUcs4);
-void*   doFetchRows(SRequestObj* pRequest, bool setupOneRowPtr, bool convertUcs4);
+void* doAsyncFetchRows(SRequestObj* pRequest, bool setupOneRowPtr, bool convertUcs4);
+void* doFetchRows(SRequestObj* pRequest, bool setupOneRowPtr, bool convertUcs4);
 
-void    doSetOneRowPtr(SReqResultInfo* pResultInfo);
-void    setResPrecision(SReqResultInfo* pResInfo, int32_t precision);
-int32_t setQueryResultFromRsp(SReqResultInfo* pResultInfo, const SRetrieveTableRsp* pRsp, bool convertUcs4,
-                              bool freeAfterUse);
-void    setResSchemaInfo(SReqResultInfo* pResInfo, const SSchema* pSchema, int32_t numOfCols);
-void    doFreeReqResultInfo(SReqResultInfo* pResInfo);
+void         doSetOneRowPtr(SReqResultInfo* pResultInfo);
+void         setResPrecision(SReqResultInfo* pResInfo, int32_t precision);
+int32_t      setQueryResultFromRsp(SReqResultInfo* pResultInfo, const SRetrieveTableRsp* pRsp, bool convertUcs4,
+                                   bool freeAfterUse);
+void         setResSchemaInfo(SReqResultInfo* pResInfo, const SSchema* pSchema, int32_t numOfCols);
+void         doFreeReqResultInfo(SReqResultInfo* pResInfo);
 SRequestObj* execQuery(STscObj* pTscObj, const char* sql, int sqlLen);
 
 static FORCE_INLINE SReqResultInfo* tmqGetCurResInfo(TAOS_RES* res) {
@@ -252,6 +254,7 @@ static FORCE_INLINE SReqResultInfo* tmqGetNextResInfo(TAOS_RES* res, bool conver
       taosMemoryFreeClear(msg->resInfo.pCol);
       taosMemoryFreeClear(msg->resInfo.length);
       taosMemoryFreeClear(msg->resInfo.convertBuf);
+      taosMemoryFreeClear(msg->resInfo.convertJson);
     }
     setQueryResultFromRsp(&msg->resInfo, pRetrieve, convertUcs4, false);
     return &msg->resInfo;
@@ -296,17 +299,17 @@ bool persistConnForSpecificMsg(void* parenct, tmsg_t msgType);
 void processMsgFromServer(void* parent, SRpcMsg* pMsg, SEpSet* pEpSet);
 
 STscObj* taos_connect_internal(const char* ip, const char* user, const char* pass, const char* auth, const char* db,
-                            uint16_t port, int connType);
+                               uint16_t port, int connType);
 
 SRequestObj* launchQuery(STscObj* pTscObj, const char* sql, int sqlLen);
 
 int32_t parseSql(SRequestObj* pRequest, bool topicQuery, SQuery** pQuery, SStmtCallback* pStmtCb);
 
-int32_t getPlan(SRequestObj* pRequest, SQuery* pQuery, SQueryPlan** pPlan, SArray** pNodeList);
+int32_t getPlan(SRequestObj* pRequest, SQuery* pQuery, SQueryPlan** pPlan, SArray* pNodeList);
 
 int32_t buildRequest(STscObj* pTscObj, const char* sql, int sqlLen, SRequestObj** pRequest);
 
-void taos_close_internal(void *taos);
+void taos_close_internal(void* taos);
 
 // --- heartbeat
 // global, called by mgmt
@@ -327,12 +330,13 @@ void hbMgrInitMqHbRspHandle();
 
 SRequestObj* launchQueryImpl(SRequestObj* pRequest, SQuery* pQuery, bool keepQuery, void** res);
 int32_t      scheduleQuery(SRequestObj* pRequest, SQueryPlan* pDag, SArray* pNodeList);
-void         launchAsyncQuery(SRequestObj* pRequest, SQuery* pQuery);
+void         launchAsyncQuery(SRequestObj* pRequest, SQuery* pQuery, SMetaData* pResultMeta);
 int32_t      refreshMeta(STscObj* pTscObj, SRequestObj* pRequest);
 int32_t      updateQnodeList(SAppInstInfo* pInfo, SArray* pNodeList);
 void         doAsyncQuery(SRequestObj* pRequest, bool forceUpdateMeta);
-int32_t      removeMeta(STscObj* pTscObj, SArray* tbList);// todo move to clientImpl.c and become a static function
-int32_t      handleAlterTbExecRes(void* res, struct SCatalog* pCatalog);// todo move to xxx
+int32_t      removeMeta(STscObj* pTscObj, SArray* tbList);  // todo move to clientImpl.c and become a static function
+int32_t      handleAlterTbExecRes(void* res, struct SCatalog* pCatalog);  // todo move to xxx
+bool         qnodeRequired(SRequestObj* pRequest);
 
 #ifdef __cplusplus
 }

@@ -33,8 +33,6 @@ typedef enum {
   JOB_TASK_STATUS_PARTIAL_SUCCEED,
   JOB_TASK_STATUS_SUCCEED,
   JOB_TASK_STATUS_FAILED,
-  JOB_TASK_STATUS_CANCELLING,
-  JOB_TASK_STATUS_CANCELLED,
   JOB_TASK_STATUS_DROPPING,
 } EJobTaskType;
 
@@ -48,6 +46,10 @@ typedef enum {
   TARGET_TYPE_VNODE,
   TARGET_TYPE_OTHER,
 } ETargetType;
+
+#define QUERY_POLICY_VNODE  1
+#define QUERY_POLICY_HYBRID 2
+#define QUERY_POLICY_QNODE  3
 
 typedef struct STableComInfo {
   uint8_t  numOfTags;     // the number of tags in schema
@@ -205,6 +207,10 @@ char*   jobTaskStatusStr(int32_t status);
 
 SSchema createSchema(int8_t type, int32_t bytes, col_id_t colId, const char* name);
 void destroyQueryExecRes(SQueryExecRes* pRes);
+int32_t dataConverToStr(char *str, int type, void *buf, int32_t bufSize, int32_t *len);
+char* parseTagDatatoJson(void* p);
+int32_t cloneTableMeta(STableMeta* pSrc, STableMeta** pDst);
+int32_t cloneDbVgInfo(SDBVgInfo* pSrc, SDBVgInfo** pDst);
 
 extern int32_t (*queryBuildMsg[TDMT_MAX])(void *input, char **msg, int32_t msgSize, int32_t *msgLen, void*(*mallocFp)(int32_t));
 extern int32_t (*queryProcessMsgRsp[TDMT_MAX])(void* output, char* msg, int32_t msgSize);
