@@ -35,7 +35,7 @@
             "name": "(gdb) node1 clear",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/debug/build/bin/taosd",
+            "program": "${workspaceFolder}/build/build/bin/taosd",
             "args": [
                 "-c",
 				"${workspaceFolder}/sim/dnode1/cfg"
@@ -63,7 +63,7 @@
             "name": "(gdb) shell",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/debug/build/bin/taos",
+            "program": "${workspaceFolder}/build/build/bin/taos",
             "args": [
                 "-c",
 				"${workspaceFolder}/sim/dnode1/cfg"

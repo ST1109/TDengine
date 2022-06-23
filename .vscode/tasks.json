@@ -45,7 +45,7 @@
 		{
 			"label": "(run) node1",
 			"type": "shell",
-			"command": "${workspaceFolder}/debug/build/bin/taosd",
+			"command": "${workspaceFolder}/build/build/bin/taosd",
 			"args": [
 				"-c",
 				"${workspaceFolder}/sim/dnode1/cfg"
@@ -54,7 +54,7 @@
 		{
 			"label": "(run) node1 clear",
 			"type": "shell",
-			"command": "${workspaceFolder}/debug/build/bin/taosd",
+			"command": "${workspaceFolder}/build/build/bin/taosd",
 			"args": [
 				"-c",
 				"${workspaceFolder}/sim/dnode1/cfg"
@@ -75,7 +75,7 @@
 				"--track-origins=yes",
 				"--show-leak-kinds=all",
 				"-v",
-				"${workspaceFolder}/debug/build/bin/taosd",
+				"${workspaceFolder}/build/build/bin/taosd",
 				"-c",
 				"${workspaceFolder}/sim/dnode1/cfg"
 			]
@@ -83,7 +83,7 @@
 		{
 			"label": "(run) shell",
 			"type": "shell",
-			"command": "${workspaceFolder}/debug/build/bin/taos",
+			"command": "${workspaceFolder}/build/build/bin/taos",
 			"args": [
 				"-c",
 				"${workspaceFolder}/sim/dnode1/cfg"
@@ -92,7 +92,7 @@
 		{
 			"label": "(run) shell script",
 			"type": "shell",
-			"command": "${workspaceFolder}/debug/build/bin/taos",
+			"command": "${workspaceFolder}/build/build/bin/taos",
 			"args": [
 				"-c",
 				"${workspaceFolder}/sim/dnode1/cfg",
@@ -134,7 +134,7 @@
 		{
 			"label": "(test) create table",
 			"type": "shell",
-			"command": "${workspaceFolder}/debug/build/bin/create_table",
+			"command": "${workspaceFolder}/build/build/bin/create_table",
 			"args": [
 				"-c",
 				"${workspaceFolder}/sim/dnode1/cfg",
