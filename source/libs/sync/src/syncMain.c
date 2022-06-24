@@ -50,7 +50,7 @@ static int32_t syncNodeAppendNoop(SSyncNode* ths);
 // process message ----
 int32_t syncNodeOnPingCb(SSyncNode* ths, SyncPing* pMsg);
 int32_t syncNodeOnPingReplyCb(SSyncNode* ths, SyncPingReply* pMsg);
-int32_t syncNodeOnClientRequestCb(SSyncNode* ths, SyncClientRequest* pMsg);
+int32_t syncNodeOnClientRequestCb(SSyncNode* ths, SyncClientRequest* pMsg, SyncIndex* pRetIndex);
 
 // life cycle
 static void syncFreeNode(void* param);
@@ -627,7 +627,7 @@ int32_t syncPropose(int64_t rid, SRpcMsg* pMsg, bool isWeak) {
   return ret;
 }
 
-int32_t syncNodePropose(SSyncNode* pSyncNode, const SRpcMsg* pMsg, bool isWeak) {
+int32_t syncNodePropose(SSyncNode* pSyncNode, SRpcMsg* pMsg, bool isWeak) {
   int32_t ret = 0;
 
   char eventLog[128];
@@ -664,13 +664,28 @@ int32_t syncNodePropose(SSyncNode* pSyncNode, const SRpcMsg* pMsg, bool isWeak) 
     SRpcMsg            rpcMsg;
     syncClientRequest2RpcMsg(pSyncMsg, &rpcMsg);
 
-    if (pSyncNode->FpEqMsg != NULL && (*pSyncNode->FpEqMsg)(pSyncNode->msgcb, &rpcMsg) == 0) {
-      ret = 0;
+    // optimized
+    if (pSyncNode->replicaNum == 1 && syncUtilUserCommit(pMsg->msgType) && pSyncNode->vgId != 1) {
+      SyncIndex retIndex;
+      syncNodeOnClientRequestCb(pSyncNode, pSyncMsg, &retIndex);
+      sDebug("vgId:%d optimized index:%ld, msgtype:%s,%d", pSyncNode->vgId, retIndex, TMSG_INFO(pMsg->msgType),
+             pMsg->msgType);
+      pMsg->info.conn.applyIndex = retIndex;
+
+      rpcFreeCont(rpcMsg.pCont);
+      syncRespMgrDel(pSyncNode->pSyncRespMgr, seqNum);
+      ret = 1;
+
     } else {
-      ret = -1;
-      terrno = TSDB_CODE_SYN_INTERNAL_ERROR;
-      sError("syncPropose pSyncNode->FpEqMsg is NULL");
+      if (pSyncNode->FpEqMsg != NULL && (*pSyncNode->FpEqMsg)(pSyncNode->msgcb, &rpcMsg) == 0) {
+        ret = 0;
+      } else {
+        ret = -1;
+        terrno = TSDB_CODE_SYN_INTERNAL_ERROR;
+        sError("syncPropose pSyncNode->FpEqMsg is NULL");
+      }
     }
+
     syncClientRequestDestroy(pSyncMsg);
     goto _END;
 
@@ -2375,7 +2390,7 @@ int32_t syncNodeOnPingReplyCb(SSyncNode* ths, SyncPingReply* pMsg) {
 //     /\ UNCHANGED <<messages, serverVars, candidateVars,
 //                    leaderVars, commitIndex>>
 //
-int32_t syncNodeOnClientRequestCb(SSyncNode* ths, SyncClientRequest* pMsg) {
+int32_t syncNodeOnClientRequestCb(SSyncNode* ths, SyncClientRequest* pMsg, SyncIndex* pRetIndex) {
   int32_t ret = 0;
   syncClientRequestLog2("==syncNodeOnClientRequestCb==", pMsg);
 
@@ -2432,6 +2447,14 @@ int32_t syncNodeOnClientRequestCb(SSyncNode* ths, SyncClientRequest* pMsg) {
       }
     }
     rpcFreeCont(rpcMsg.pCont);
+  }
+
+  if (ret == 0 && pEntry != NULL && pRetIndex != NULL) {
+    *pRetIndex = pEntry->index;
+  } else {
+    if (pRetIndex != NULL) {
+      *pRetIndex = SYNC_INDEX_INVALID;
+    }
   }
 
   syncEntryDestory(pEntry);
@@ -2612,7 +2635,25 @@ int32_t syncNodeCommit(SSyncNode* ths, SyncIndex beginIndex, SyncIndex endIndex,
       if (i != SYNC_INDEX_INVALID) {
         SSyncRaftEntry* pEntry;
         code = ths->pLogStore->syncLogGetEntry(ths->pLogStore, i, &pEntry);
-        ASSERT(code == 0);
+        if (code != 0) {
+          int32_t     err = terrno;
+          const char* errStr = tstrerror(err);
+          int32_t     sysErr = errno;
+          const char* sysErrStr = strerror(errno);
+
+          do {
+            char logBuf[128];
+            snprintf(logBuf, sizeof(logBuf), "wal read error, index:%ld, err:%d %X, msg:%s, syserr:%d, sysmsg:%s", i,
+                     err, err, errStr, sysErr, sysErrStr);
+            if (terrno == TSDB_CODE_WAL_LOG_NOT_EXIST) {
+              syncNodeEventLog(ths, logBuf);
+            } else {
+              syncNodeErrorLog(ths, logBuf);
+            }
+          } while (0);
+
+          ASSERT(0);
+        }
         ASSERT(pEntry != NULL);
 
         SRpcMsg rpcMsg;
