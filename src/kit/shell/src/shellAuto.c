@@ -66,7 +66,7 @@ SWords shellCommands[] = {
   {"create topic", 0, 0, NULL},
   {"create user <...> pass", 0, 0, NULL},
   {"compact vnode in", 0, 0, NULL},
-  {"describe <stb_name>", 0, 0, NULL},
+  {"describe <all_table>", 0, 0, NULL},
 #ifdef TD_ENTERPRISE
   {"delete from <tb_name> where", 0, 0, NULL},
 #endif
@@ -74,13 +74,14 @@ SWords shellCommands[] = {
   {"drop dnode <dnodeid>", 0, 0, NULL},
   {"drop function", 0, 0, NULL},
   {"drop topic", 0, 0, NULL},
-  {"drop table <tb_name>", 0, 0, NULL},
+  {"drop table <all_table>", 0, 0, NULL},
   {"drop user <username>", 0, 0, NULL},
   {"kill connection", 0, 0, NULL},
   {"kill query", 0, 0, NULL},
   {"kill stream", 0, 0, NULL},
-  {"select <expr> from <tb_name> where <keyword> [group by] [order by] [asc|desc] [limit] [offset] [slimit] [soffset] [interval] [sliding] [fill] [session] [state]", 0, 0, NULL},
-  {"select <expr> union all select <expr>", 0, 0, NULL},
+  {"select * from <all_table> where <...> group by <...> order by <...> limit <...> offset ", 0, 0, NULL},
+  //{"select <expr> union all select <expr>", 0, 0, NULL},
+
   {"select _block_dist() from <tb_name>", 0, 0, NULL},
   {"select client_version();", 0, 0, NULL},
   {"select current_user();", 0, 0, NULL},
@@ -110,6 +111,26 @@ SWords shellCommands[] = {
   {"use <db_name>", 0, 0, NULL}
 };
 
+char * keywords[] = {
+  "asc",
+  "desc",
+  "limit",
+  "where",
+  "order by",
+  "offset",
+  "group by",
+  "session",
+  "sliding",
+  "interval"
+};
+
+char * functions[] = {
+  "count(",
+  "diff(",
+  "sum(",
+};
+
+
 //
 //  ------- gobal variant define ---------
 //
@@ -123,10 +144,13 @@ bool    waitAutoFill    = false;
 //
 //   ----------- global var array define -----------
 //
-#define WT_VAR_DBNAME 0
-#define WT_VAR_STABLE 1
-#define WT_VAR_TABLE  2
-#define WT_VAR_CNT    3
+#define WT_VAR_DBNAME   0
+#define WT_VAR_STABLE   1
+#define WT_VAR_TABLE    2
+#define WT_VAR_ALLTABLE 3
+#define WT_VAR_FUNC     4
+#define WT_VAR_KEYWORD  5
+#define WT_VAR_CNT      6
 
 #define WT_TEXT       0xFF
 
@@ -139,14 +163,22 @@ pthread_t* threads[WT_VAR_CNT];
 char varTypes[WT_VAR_CNT][64] = {
   "<db_name>",
   "<stb_name>",
-  "<tb_name>"
+  "<tb_name>",
+  "<all_table>",
+  "<function>",
+  "<keyword>"
 };
 
 char varSqls[WT_VAR_CNT][64] = {
   "show databases;",
   "show stables;",
-  "show tables;"
+  "show tables;",
+  "", // all_table
+  "", // function
+  "", // keyword
 };
+
+
 
 
 // var words current cursor, if user press any one key except tab, cursorVar can be reset to -1
@@ -264,6 +296,17 @@ void freeCommand(SWords * command) {
   free(word);
 }
 
+void GenerateVarType(int type, char* p, int count) {
+  STire* tire = createTire();
+  for (int i = 0; i < count; i++) {
+    insertWord(tire, p[i]);
+  }
+
+  pthread_mutex_lock(&tiresMutex);
+  tires[type] = tire;
+  pthread_mutex_unlock(&tiresMutex);
+}
+
 //
 //  -------------------- shell auto ----------------
 //
@@ -282,6 +325,10 @@ bool shellAutoInit() {
 
   // threads
   memset(threads, 0, sizeof(pthread_t*) * WT_VAR_CNT);
+
+  // generate varType
+  GenerateVarType(WT_VAR_FUNC,    functions, sizeof(functions)/sizeof(char *));
+  GenerateVarType(WT_VAR_KEYWORD, keywords,  sizeof(keywords) /sizeof(char *));
 
   return true;
 }
@@ -438,7 +485,7 @@ int writeVarNames(int type, TAOS_RES* tres) {
   return numOfRows;
 }
 
-void firstMatchCommand(TAOS * con, Command * cmd);
+bool firstMatchCommand(TAOS * con, Command * cmd);
 // obtain var thread from db server 
 void* varObtainThread(void* param) {
   int type = *(int* )param;
@@ -547,7 +594,7 @@ bool matchNextPrefix(STire* tire, char* pre, char* output) {
   return ret;
 }
 
-// search pre word from tire tree, return value is global buffer,so need not free
+// search pre word from tire tree, return value is global buffer varName[], so need not free
 char* tireSearchWord(int type, char* pre) {
   if (type == WT_TEXT) {
     return NULL;
@@ -600,13 +647,26 @@ char* tireSearchWord(int type, char* pre) {
 // match var word, word1 is pattern , word2 is input from shell 
 bool matchVarWord(SWord* word1, SWord* word2) {
   // search input word from tire tree 
-  char pre[256];
+  char pre[512];
   memcpy(pre, word2->word, word2->len);
   pre[word2->len] = 0;
-  char* word = tireSearchWord(word1->type, pre);
-  if (word == NULL) {
-    // not found or word1->type variable list not obtain from server, return not match
-    return false;
+
+  char* word = NULL;
+  if (word1->type == WT_VAR_ALLTABLE) {
+    // ALL_TABLE
+    word = tireSearchWord(WT_VAR_STABLE, pre);
+    if (word == NULL) {
+      word = tireSearchWord(WT_VAR_TABLE, pre);
+      if(word == NULL)
+        return false;
+    }
+  } else {
+    // OTHER
+    word = tireSearchWord(word1->type, pre);
+    if (word == NULL) {
+      // not found or word1->type variable list not obtain from server, return not match
+      return false;
+    }
   }
 
   // save
@@ -763,8 +823,8 @@ void printScreen(TAOS * con, Command * cmd, SWords * match) {
 }
 
 
-// main key press tab
-void firstMatchCommand(TAOS * con, Command * cmd) {
+// main key press tab , matched return true else false
+bool firstMatchCommand(TAOS * con, Command * cmd) {
   // parse command
   SWords* input = (SWords *)malloc(sizeof(SWords));
   memset(input, 0, sizeof(SWords));
@@ -779,12 +839,13 @@ void firstMatchCommand(TAOS * con, Command * cmd) {
   if (match == NULL) {
     // not match , nothing to do
     freeCommand(input);
-    return ;
+    return false;
   }
 
   // print to screen
   printScreen(con, cmd, match);
   freeCommand(input);
+  return true;
 }
 
 // create input source
@@ -813,10 +874,10 @@ void createInputFromFirst(SWords* input, SWords * firstMatch) {
   }
 }
 
-// user press Tabkey again is named next
-void nextMatchCommand(TAOS * con, Command * cmd, SWords * firstMatch) {
+// user press Tabkey again is named next , matched return true else false
+bool nextMatchCommand(TAOS * con, Command * cmd, SWords * firstMatch) {
   if (firstMatch == NULL || firstMatch->head == NULL) {
-    return ;
+    return false;
   }
   SWords* input = (SWords *)malloc(sizeof(SWords));
   memset(input, 0, sizeof(SWords));
@@ -836,7 +897,7 @@ void nextMatchCommand(TAOS * con, Command * cmd, SWords * firstMatch) {
     match = matchCommand(input, false);
     if (match == NULL) {
       freeCommand(input);
-      return ;
+      return false;
     }
   }
 
@@ -849,12 +910,132 @@ void nextMatchCommand(TAOS * con, Command * cmd, SWords * firstMatch) {
     input->source = NULL;
   }
   freeCommand(input);
+
+  return true;
 }
 
 // show help
 void showHelp(TAOS * con, Command * cmd) {
   
 }
+
+// fill with type
+bool fillWithType(TAOS * con, Command * cmd, char* pre, int type) {
+  // get type
+  STire* tire = tires[type];
+  char str[1024] = {0};
+  if (!matchNextPrefix(tire, pre, str)) {
+    return false;
+  }
+
+  // show
+  insertChar(cmd, str, strlen(str));
+  return true;
+}
+
+// fill with type
+bool fillTableName(TAOS * con, Command * cmd, char* pre) {
+  // search stable and table
+  char * word = tireSearchWord(WT_VAR_STABLE, pre);
+  if (word == NULL) {
+    word = tireSearchWord(WT_VAR_TABLE, pre);
+    if(word == NULL)
+      return false;
+  }
+
+  // match true show
+  insertChar(cmd, word, strlen(word));
+  return true;
+}
+
+//
+// find last word from sql select clause
+//  example :
+//  1 select cou -> press tab  select count(
+//  2 select count(*),su -> select count(*), sum(
+//  3 select count(*), su -> select count(*), sum(
+//
+char * lastWord(char * p) {
+  // get near from end revert find ' ' and ',' 
+  char * p1 = strrchr(p, ' ');
+  char * p2 = strrchr(p, ',');
+
+  if (p1 && p2) {
+    return MAX(p1, p2);
+  } else if (p1) {
+    return p1;
+  } else if(p2) {
+    return p2;
+  } else {
+    return p;
+  } 
+}
+ 
+bool matchSelectQuery(TAOS * con, Command * cmd) {
+  // match select ...
+  int len = cmd->commandSize;
+  char * p = cmd->command;
+
+  // remove prefix blank
+  while(p[0] == ' ' && len > 0) {
+    p++;
+    len--;
+  }
+
+  // special range
+  if(len < 7 || len > 512) {
+    return false;
+  }
+
+  // select and from 
+  if(strncmp(p, "select ", 7) != 0) {
+    // not select query clause
+    return false;
+  }
+  p += 7;
+  len -= 7;
+
+  p = strndup(p, len);
+
+  char * from = strstr(p, " from ");
+  //last word , maybe empty string or some letters of a string
+  char * last = lastWord(p);
+  bool ret = false;
+  last += 1;
+  if (from == NULL) {
+    // fill funciton
+    ret = fillWithType(con, cmd, last, WT_VAR_FUNC);
+    free(p);
+    return ret;
+  }
+
+  // have from
+  char * blank = strstr(from + 6, " ");
+  if (blank == NULL) {
+    // no table name, need fill
+    ret = fillTableName(con, cmd, last);
+  } else {
+    ret = fillWithType(con, cmd, last, WT_VAR_KEYWORD);
+  }
+
+  free(p);
+  return ret;
+}
+
+bool matchOther(TAOS * con, Command * cmd) {
+  int len = cmd->commandSize;
+  char* p = cmd->command;
+
+  if (p[len - 1] == '\\') {
+    // append '\G'
+    char a[] = "G;";
+    insertChar(cmd, a, 2);
+    return true;
+  }
+  
+  return false;
+}
+
 
 // main key press tab
 void pressTabKey(TAOS * con, Command * cmd) {
@@ -868,12 +1049,26 @@ void pressTabKey(TAOS * con, Command * cmd) {
   // save connection to global
   varCon = con;
   varCmd = cmd;
+  bool matched = false;
 
   if (firstMatchIndex == -1) {
-    firstMatchCommand(con, cmd);
+    matched = firstMatchCommand(con, cmd);
   } else {
-    nextMatchCommand(con, cmd, &shellCommands[firstMatchIndex]);
+    matched = nextMatchCommand(con, cmd, &shellCommands[firstMatchIndex]);
   }
+  if (matched)
+     return ;
+
+  // NOT MATCHED ANYONE
+  // match other like '\G' ...
+  matched = matchOther(con, cmd);
+  if (matched)
+     return ;
+
+  // manual match like select * from ...
+  matched = matchSelectQuery(con, cmd);
+
+  return ;
 }
 
 // press othr key
