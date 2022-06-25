@@ -187,7 +187,7 @@ static int32_t raftLogAppendEntry(struct SSyncLogStore* pLogStore, SSyncRaftEntr
     ASSERT(0);
   }
 
-  walFsync(pWal, true);
+  // walFsync(pWal, true);
 
   char eventLog[128];
   snprintf(eventLog, sizeof(eventLog), "write index:%ld, type:%s,%d, type2:%s,%d", pEntry->index,
@@ -445,7 +445,7 @@ int32_t logStoreAppendEntry(SSyncLogStore* pLogStore, SSyncRaftEntry* pEntry) {
     ASSERT(0);
   }
 
-  walFsync(pWal, true);
+  // walFsync(pWal, true);
 
   char eventLog[128];
   snprintf(eventLog, sizeof(eventLog), "old write index:%ld, type:%s,%d, type2:%s,%d", pEntry->index,

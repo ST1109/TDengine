@@ -138,8 +138,14 @@ void vnodeProposeMsg(SQueueInfo *pInfo, STaosQall *qall, int32_t numOfMsgs) {
       } else {
         code = syncPropose(pVnode->sync, pMsg, vnodeIsMsgWeak(pMsg->msgType));
         if (code == 1) {
-          vInfo("vgId:%d, msg:%p apply right now, pMsg->info.conn.applyIndex:%ld, msg-type:%s,%d", vgId, pMsg,
-                pMsg->info.conn.applyIndex, TMSG_INFO(pMsg->msgType), pMsg->msgType);
+          do {
+            static int32_t cnt = 0;
+            cnt++;
+            if (cnt % 1000 == 1) {
+              vInfo("vgId:%d, msg:%p apply right now, pMsg->info.conn.applyIndex:%ld, msg-type:%s,%d", vgId, pMsg,
+                    pMsg->info.conn.applyIndex, TMSG_INFO(pMsg->msgType), pMsg->msgType);
+            }
+          } while (0);
 
           SRpcMsg rsp = {.code = pMsg->code, .info = pMsg->info};
           if (vnodeProcessWriteReq(pVnode, pMsg, pMsg->info.conn.applyIndex, &rsp) < 0) {
