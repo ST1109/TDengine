@@ -24,6 +24,12 @@
 #include "tire.h"
 #include "tthread.h"
 
+//
+// ------------- define area  ---------------
+//
+#define UNION_ALL " union all "
+
+
 // extern function
 void insertChar(Command *cmd, char *c, int size);
 
@@ -79,7 +85,7 @@ SWords shellCommands[] = {
   {"kill connection", 0, 0, NULL},
   {"kill query", 0, 0, NULL},
   {"kill stream", 0, 0, NULL},
-  {"select * from <all_table> where <...> group by <...> order by <...> limit <...> offset ", 0, 0, NULL},
+  {"select * from <all_table> where", 0, 0, NULL},
   //{"select <expr> union all select <expr>", 0, 0, NULL},
 
   {"select _block_dist() from <tb_name>", 0, 0, NULL},
@@ -112,22 +118,88 @@ SWords shellCommands[] = {
 };
 
 char * keywords[] = {
-  "asc",
-  "desc",
-  "limit",
-  "where",
-  "order by",
-  "offset",
-  "group by",
-  "session",
-  "sliding",
-  "interval"
+  "and ",
+  "from ",
+  "fill(",
+  "limit ",
+  "interval(",
+  "order by asc ",
+  "order by desc ",
+  "offset ",
+  "or ",
+  "group by ",
+  "now()",
+  "session(",
+  "sliding ",
+  "slimit ",
+  "soffset ",
+  "state_window(",
+  "today() ",
+  "where ",
+  "union all select ",
 };
 
 char * functions[] = {
+  "abs(",
+  "atan(",
+  "acos(",
+  "asin(",
+  "avg(",
+  "apercentile(",
+  "bottom(",
+  "cast(",
+  "ceil(",
+  "char_length(",
+  "cos(",
+  "concat(",
+  "concat_ws(",
   "count(",
+  "csum(",
   "diff(",
+  "derivative(",
+  "elapsed(",
+  "first(",
+  "floor(",
+  "hyperloglog(",
+  "histogram(",
+  "interp(",
+  "irate(",
+  "last(",
+  "last_row(",
+  "leastsquares(",
+  "length(",
+  "log(",
+  "lower(",
+  "ltrim(",
+  "mavg(",
+  "mode(",
+  "max(",
+  "min(",
+  "now()",
+  "pow(",  
+  "percentile(",
+  "tail(",
+  "tan(",
+  "round(",
+  "rtrim(",
+  "sample(",
+  "sin(",
+  "spread(",
+  "substr(",
   "sum(",
+  "statecount(",
+  "stateduration(",
+  "stddev(",
+  "sqrt(",
+  "timediff(",
+  "timezone(",
+  "timetruncate(",
+  "twa(",
+  "today()",
+  "top(",
+  "to_unixtimestamp(",
+  "unique(",
+  "upper(",
 };
 
 
@@ -188,9 +260,10 @@ bool varMode = false; // enter var names list mode
 // define buffer for SWord->word for variant name used
 char varName[1024] = "";
 
-TAOS* varCon = NULL;
-Command* varCmd = NULL;
-SMatch* lastMatch = NULL; // save last match result 
+TAOS*    varCon    = NULL;
+Command* varCmd    = NULL;
+SMatch*  lastMatch = NULL; // save last match result 
+int      cntDel    = 0;   // delete byte count after next press tab
 
 
 //
@@ -296,7 +369,7 @@ void freeCommand(SWords * command) {
   free(word);
 }
 
-void GenerateVarType(int type, char* p, int count) {
+void GenerateVarType(int type, char** p, int count) {
   STire* tire = createTire();
   for (int i = 0; i < count; i++) {
     insertWord(tire, p[i]);
@@ -769,6 +842,23 @@ SWords * matchCommand(SWords * input, bool continueSearch) {
 //  -------------------  print screen --------------------------
 //
 
+// delete char count
+void deleteCount(Command * cmd, int count) {
+  int size = 0;
+  int width = 0;
+  clearScreen(cmd->endOffset + prompt_size, cmd->screenOffset + prompt_size);
+
+  // loop delete
+  while (--count >= 0 && cmd->cursorOffset > 0) {
+    getPrevCharSize(cmd->command, cmd->cursorOffset, &size, &width);
+    memmove(cmd->command + cmd->cursorOffset - size, cmd->command + cmd->cursorOffset,
+            cmd->commandSize - cmd->cursorOffset);
+    cmd->commandSize -= size;
+    cmd->cursorOffset -= size;
+    cmd->screenOffset -= width;
+    cmd->endOffset -= width;
+  }
+}
 
 // show screen
 void printScreen(TAOS * con, Command * cmd, SWords * match) {
@@ -792,23 +882,7 @@ void printScreen(TAOS * con, Command * cmd, SWords * match) {
   } else {
     if (lastWordBytes == -1)
       return ;
-
-    // continue to press tab any times
-    int count = lastWordBytes;
-
-    // delete last match word length
-    int size = 0;
-    int width = 0;
-    clearScreen(cmd->endOffset + prompt_size, cmd->screenOffset + prompt_size);
-    while (--count >= 0 && cmd->cursorOffset > 0) {
-      getPrevCharSize(cmd->command, cmd->cursorOffset, &size, &width);
-      memmove(cmd->command + cmd->cursorOffset - size, cmd->command + cmd->cursorOffset,
-              cmd->commandSize - cmd->cursorOffset);
-      cmd->commandSize -= size;
-      cmd->cursorOffset -= size;
-      cmd->screenOffset -= width;
-      cmd->endOffset -= width;
-    }
+    deleteCount(cmd, lastWordBytes);
 
     SWord * word = MATCH_WORD(match);
     str = word->word;
@@ -928,8 +1002,13 @@ bool fillWithType(TAOS * con, Command * cmd, char* pre, int type) {
     return false;
   }
 
+  // need insert part string
+  char * part = str + strlen(pre);
+
   // show
-  insertChar(cmd, str, strlen(str));
+  int count = strlen(part);
+  insertChar(cmd, part, count);
+  cntDel = count; // next press tab delete current append count
   return true;
 }
 
@@ -943,8 +1022,19 @@ bool fillTableName(TAOS * con, Command * cmd, char* pre) {
       return false;
   }
 
-  // match true show
-  insertChar(cmd, word, strlen(word));
+  // need insert part string
+  char * part = word + strlen(pre); 
+
+  // delete autofill count last append
+  if(cntDel > 0) {
+    deleteCount(cmd, cntDel);
+    cntDel = 0;
+  }
+
+  // show
+  int count = strlen(part);
+  insertChar(cmd, part, count);
+  cntDel = count; // next press tab delete current append count
   return true;
 }
 
@@ -961,23 +1051,99 @@ char * lastWord(char * p) {
   char * p2 = strrchr(p, ',');
 
   if (p1 && p2) {
-    return MAX(p1, p2);
+    return MAX(p1, p2) + 1;
   } else if (p1) {
-    return p1;
+    return p1 + 1;
   } else if(p2) {
-    return p2;
+    return p2 + 1;
   } else {
     return p;
   } 
 }
- 
+
+bool fieldsInputEnd(char* sql) {
+  // not in '()'
+  char* p1 = strrchr(sql, '(');
+  char* p2 = strrchr(sql, ')');
+  if (p1 && p2 == NULL) {
+    // like select count( '  '
+    return false;
+  } else if (p1 && p2 && p1 > p2) {
+    // like select sum(age), count( ' '
+    return false;
+  }
+
+  // not in ','
+  char * p = strrchr(sql, ',');
+  // like select ts, age,'    ' 
+  if (p) {
+    ++p;
+    bool allBlank = true;
+    int  cnt = 0; // blank count , continue many blank is one blank
+    char * plast = NULL;
+    while(*p) {
+      if (*p != ' ') {
+        allBlank = false;
+        plast = NULL;
+      } else {
+        if(plast == NULL) {
+          plast = p;
+          cnt ++;
+        }
+      }
+      ++p;
+    }
+
+    // any one word is not blank
+    if(allBlank) {
+      return false;
+    }
+
+    // if last char not ' ', then not end field, like select count(*), su + tab can fill sum(
+    if(sql[strlen(sql)-1] != ' ' && cnt <= 1) {
+      return false;
+    }
+  }
+
+  char * p3 = strrchr(sql, ' ');
+  if(p3 == NULL) {
+    // only one word
+    return false;
+  }
+
+  return true;
+}
+
+// need insert from
+bool needInsertFrom(char * sql, int len) {
+  // last is blank 
+  if(sql[len-1] != ' ') {
+    // insert from keyword
+    return false;
+  }
+
+  //  select fields input is end
+  if (!fieldsInputEnd(sql)) {
+    return false;
+  }
+
+  // can insert from keyword
+  return true;
+}
+
 bool matchSelectQuery(TAOS * con, Command * cmd) {
+  // if continue press Tab , delete bytes by previous autofill
+  if (cntDel > 0) {
+    deleteCount(cmd, cntDel);
+    cntDel = 0;
+  }
+
   // match select ...
   int len = cmd->commandSize;
   char * p = cmd->command;
 
   // remove prefix blank
-  while(p[0] == ' ' && len > 0) {
+  while (p[0] == ' ' && len > 0) {
     p++;
     len--;
   }
@@ -995,17 +1161,39 @@ bool matchSelectQuery(TAOS * con, Command * cmd) {
   p += 7;
   len -= 7;
 
-  p = strndup(p, len);
+  char* ps = p = strndup(p, len);
+
+  // union all
+  char * p1;
+  do {
+    p1 = strstr(p, UNION_ALL);
+    if(p1) {
+      p = p1 + strlen(UNION_ALL);
+    }
+  } while (p1);
 
   char * from = strstr(p, " from ");
   //last word , maybe empty string or some letters of a string
   char * last = lastWord(p);
   bool ret = false;
-  last += 1;
   if (from == NULL) {
+    bool fieldEnd = fieldsInputEnd(p);
+    // cheeck fields input end then insert from keyword
+    if (fieldEnd && p[len-1] == ' ') {
+      insertChar(cmd, "from", 4);
+      free(ps);
+      return true;
+    }
+
     // fill funciton
-    ret = fillWithType(con, cmd, last, WT_VAR_FUNC);
-    free(p);
+    if(fieldEnd) {
+      // fields is end , need match keyword
+      ret = fillWithType(con, cmd, last, WT_VAR_KEYWORD);
+    } else {
+      ret = fillWithType(con, cmd, last, WT_VAR_FUNC);
+    }
+    
+    free(ps);
     return ret;
   }
 
@@ -1018,7 +1206,7 @@ bool matchSelectQuery(TAOS * con, Command * cmd) {
     ret = fillWithType(con, cmd, last, WT_VAR_KEYWORD);
   }
 
-  free(p);
+  free(ps);
   return ret;
 }
 
@@ -1083,11 +1271,13 @@ void pressOtherKey(char c) {
   cursorVar    = -1;
   varMode      = false;
   waitAutoFill = false;
+  cntDel       = 0;
 
   if (lastMatch) {
     freeMatch(lastMatch);
     lastMatch = NULL;
   }
+  
 }
 
 // callback autotab module after shell sql execute
