@@ -65,8 +65,9 @@ SWords shellCommands[] = {
   {"alter topic", 0, 0, NULL},
   {"alter user <username> pass", 0, 0, NULL},
   {"alter user <username> privilege [read|write]", 0, 0, NULL},
-  {"create dnode", 0, 0, NULL},
-  {"create function", 0, 0, NULL},
+  {"create dnode ", 0, 0, NULL},
+  {"create database ", 0, 0, NULL},
+  {"create function ", 0, 0, NULL},
   {"create table <...> tags", 0, 0, NULL},
   {"create table <...> as", 0, 0, NULL},
   {"create topic", 0, 0, NULL},
@@ -226,7 +227,7 @@ bool    waitAutoFill    = false;
 
 #define WT_TEXT       0xFF
 
-char dbName[128] = ""; // save use database name;
+char dbName[256] = ""; // save use database name;
 // tire array
 STire* tires[WT_VAR_CNT];
 pthread_mutex_t tiresMutex;
@@ -1278,11 +1279,202 @@ void pressOtherKey(char c) {
     freeMatch(lastMatch);
     lastMatch = NULL;
   }
+}
+
+// put name into name, return name length
+int getWordName(char* p, char * name, int nameLen) {
+  //remove prefix blank
+  while (*p == ' ') {
+    p++;
+  }
+
+  // get databases name;
+  int i  = 0;
+  while(p[i] != 0 && i < sizeof(name) - 1) {
+    name[i] = p[i]; 
+    i++;
+    if(p[i] == '  ' || p[i] == ';'|| p[i] == '(') {
+      // name end
+      break;
+    }
+  }
+  name[i] = 0;
+
+  return i;
+}
+
+// deal use db, if have  'use' return true
+bool dealUseDB(char * sql) {
+  // check use keyword 
+  if(strncasecmp(sql, "use ", 4) != 0) {
+    return false;
+  }
   
+  char db[256];
+  char *p = sql + 4;
+  if (getWordName(p, db, sizeof(db)) == 0) {
+    // no name , return 
+    return true;
+  }
+
+  //  dbName is previous use open db name
+  if (strcasecmp(db, dbName) == 0) {
+    // same , no need switch 
+    return true;
+  }
+
+  // switch new db
+  pthread_mutex_lock(&tiresMutex);
+  // STABLE set null
+  STire* tire = tires[WT_VAR_STABLE];
+  tires[WT_VAR_STABLE] = NULL;
+  if(tire) {
+    freeTire(tire);
+  }
+  // TABLE set null
+  STire* tire = tires[WT_VAR_TABLE];
+  tires[WT_VAR_STABLE] = NULL;
+  if(tire) {
+    freeTire(tire);
+  }
+  // save
+  strcpy(dbName, db);
+  pthread_mutex_unlock(&tiresMutex);
+
+  return true;
+}
+
+// deal create, if have 'create' return true
+bool dealCreateCommand(char * sql) {
+  // check keyword 
+  if(strncasecmp(sql, "create ", 7) != 0) {
+    return false;
+  }
+  
+  char name[1024];
+  char *p = sql + 7;
+  if (getWordName(p, name, sizeof(name)) == 0) {
+    // no name , return 
+    return true;
+  }
+
+  int type = -1;
+  //  dbName is previous use open db name
+  if (strcasecmp(name, "database") == 0) {
+    type = WT_VAR_DBNAME;
+  } else if (strcasecmp(name, "table") == 0) {
+    if(strstr(sql, "tags") != NULL)
+      type = WT_VAR_STABLE;
+    else
+      type = WT_VAR_TABLE;
+  } else {
+    // no match , return 
+    return true;
+  }
+
+  // move next
+  p += strlen(name);
+
+  // get next word , that is table name
+  if (getWordName(p, name, sizeof(name)) == 0) {
+    // no name , return 
+    return true;
+  }
+
+  // switch new db
+  pthread_mutex_lock(&tiresMutex);
+  // STABLE set null
+  STire* tire = tires[type];
+  if(tire) {
+    insertWord(tire, name);
+  }
+  pthread_mutex_unlock(&tiresMutex);
+
+  return true;
+}
+
+// deal create, if have 'drop' return true
+bool dealDropCommand(char * sql) {
+  // check keyword 
+  if(strncasecmp(sql, "drop ", 5) != 0) {
+    return false;
+  }
+  
+  char name[1024];
+  char *p = sql + 5;
+  if (getWordName(p, name, sizeof(name)) == 0) {
+    // no name , return 
+    return true;
+  }
+
+  int type = -1;
+  //  dbName is previous use open db name
+  if (strcasecmp(name, "database") == 0) {
+    type = WT_VAR_DBNAME;
+  } else if (strcasecmp(name, "table") == 0) {
+    type = WT_VAR_ALLTABLE;
+  } else {
+    // no match , return 
+    return true;
+  }
+
+  // move next
+  p += strlen(name);
+
+  // get next word , that is table name
+  if (getWordName(p, name, sizeof(name)) == 0) {
+    // no name , return 
+    return true;
+  }
+
+  // switch new db
+  pthread_mutex_lock(&tiresMutex);
+  // STABLE set null
+  if(type == WT_VAR_ALLTABLE)  {
+    bool del = false;
+    // del in stable
+    STire* tire = tires[WT_VAR_STABLE];
+    if(tire)
+      del = deleteWord(tire, name);
+    // del in table
+    if(!del) {
+      tire = tires[WT_VAR_TABLE];
+      if(tire)
+        del = deleteWord(tire, name);
+    }
+  } else {
+    // OTHER TYPE
+    STire* tire = tires[type];
+    if(tire)
+      insertWord(tire, name);
+  }
+  pthread_mutex_unlock(&tiresMutex);
+
+  return true;
 }
 
 // callback autotab module after shell sql execute
 void callbackAutoTab(char* sqlstr, TAOS* pSql, bool usedb) {
+  char *  sql = sqlstr;
+  // remove prefix blank
+  while (*sql == ' ') {
+    sql++;
+  }
 
+  if(dealUseDB(sql)) {
+    // change to new db
+    return ;
+  }
 
+  // create command add name to autotab
+  if(dealCreateCommand(sql)) {
+    return ;
+  }
+
+  // drop command remove name from autotab
+  if(dealDropCommand(sql)) {
+    return ;
+  }
+
+  return ;
 }

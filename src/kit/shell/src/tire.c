@@ -86,6 +86,47 @@ bool insertWord(STire* tire, char* word) {
     return true;
 }
 
+// add a new word 
+bool deleteWord(STire* tire, char* word) {
+    int m  = 0;
+    int len = strlen(word);
+    bool del = false;
+    if (len >= MAX_WORD_LEN) {
+        return false;
+    }
+
+    STireNode** node = (STireNode** )&tire->root.d;
+    for (int i = 0; i < len; i++) {
+        m = word[i] - FIRST_ASCII;
+        if (m < 0 || m >= CHAR_CNT) {
+            return false;
+        }
+
+        if (node[m] == NULL) {
+            // no found
+            return false;
+        } else {
+            // not null
+            if(i == len - 1) {
+                // this is last, only set end false , not free node
+                node[m]->end = false;
+                del = true;
+                break;
+            }
+        }
+
+        // move to next node
+        node = (STireNode** )&node[m]->d;
+    }
+
+    // reduce count
+    if (del) {
+        tire->count -= 1;
+    }
+    
+    return del;
+}
+
 void addWordToMatch(SMatch* match, char* word){
     // malloc new
     SMatchNode* node = (SMatchNode* )tmalloc(sizeof(SMatchNode));

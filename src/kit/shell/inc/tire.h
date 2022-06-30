@@ -62,6 +62,9 @@ void freeTire(STire* tire);
 // add a new word 
 bool insertWord(STire* tire, char* word);
 
+// add a new word 
+bool deleteWord(STire* tire, char* word);
+
 // match prefix words, if match is not NULL , put all item to match and return match
 SMatch* matchPrefix(STire* tire, char* prefix, SMatch* match);
 
