@@ -226,6 +226,7 @@ bool    waitAutoFill    = false;
 
 #define WT_TEXT       0xFF
 
+char dbName[128] = ""; // save use database name;
 // tire array
 STire* tires[WT_VAR_CNT];
 pthread_mutex_t tiresMutex;
@@ -1281,26 +1282,7 @@ void pressOtherKey(char c) {
 }
 
 // callback autotab module after shell sql execute
-void callbackAutoTab(char* sqlstr, TAOS* pSql) {
-  // if sqlstr length > 32, return 
-  int i =0;
-  while(sqlstr[i++] != 0) {
-    if (i > 32) {
-      return ;
-    }
-  }
+void callbackAutoTab(char* sqlstr, TAOS* pSql, bool usedb) {
 
-  char *p = sqlstr;
-  while(p[0] == ' ') {
-    p++;
-  }
 
-  int len;
-  for (i = 0; i < WT_VAR_CNT; i ++) {
-    len = strlen(varSqls[i]) - 1;
-    if (strncmp(p, varSqls[i], len) == 0) {
-      writeVarNames(i, pSql);
-      break;
-    }
-  }
 }

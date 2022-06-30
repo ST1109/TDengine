@@ -321,6 +321,9 @@ void shellRunCommandOnServer(TAOS *con, char command[]) {
     fprintf(stdout, "Database changed.\n\n");
     fflush(stdout);
 
+    // call back auto tab module
+    callbackAutoTab(command, pSql, true);
+
     atomic_store_64(&result, 0);
     freeResultWithRid(oresult);
     return;
@@ -355,6 +358,9 @@ void shellRunCommandOnServer(TAOS *con, char command[]) {
     } else {
       printf("Query interrupted (%s), %d row(s) in set (%.6fs)\n", taos_errstr(pSql), numOfRows, (et - st) / 1E6);
     }
+
+    // call auto tab
+    callbackAutoTab(command, pSql, false);
   } else {
     int num_rows_affacted = taos_affected_rows(pSql);
     et = taosGetTimestampUs();
