@@ -75,7 +75,7 @@ SWords shellCommands[] = {
   {"compact vnode in", 0, 0, NULL},
   {"describe <all_table>", 0, 0, NULL},
 #ifdef TD_ENTERPRISE
-  {"delete from <tb_name> where", 0, 0, NULL},
+  {"delete from <all_table> where", 0, 0, NULL},
 #endif
   {"drop database <db_name>", 0, 0, NULL},
   {"drop dnode <dnodeid>", 0, 0, NULL},
@@ -1289,11 +1289,11 @@ int getWordName(char* p, char * name, int nameLen) {
   }
 
   // get databases name;
-  int i  = 0;
-  while(p[i] != 0 && i < sizeof(name) - 1) {
+  int i = 0;
+  while(p[i] != 0 && i < nameLen - 1) {
     name[i] = p[i]; 
     i++;
-    if(p[i] == '  ' || p[i] == ';'|| p[i] == '(') {
+    if(p[i] == ' ' || p[i] == ';'|| p[i] == '(') {
       // name end
       break;
     }
@@ -1332,7 +1332,7 @@ bool dealUseDB(char * sql) {
     freeTire(tire);
   }
   // TABLE set null
-  STire* tire = tires[WT_VAR_TABLE];
+  tire = tires[WT_VAR_TABLE];
   tires[WT_VAR_STABLE] = NULL;
   if(tire) {
     freeTire(tire);
@@ -1446,7 +1446,7 @@ bool dealDropCommand(char * sql) {
     // OTHER TYPE
     STire* tire = tires[type];
     if(tire)
-      insertWord(tire, name);
+      deleteWord(tire, name);
   }
   pthread_mutex_unlock(&tiresMutex);
 

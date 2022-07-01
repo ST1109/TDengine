@@ -359,12 +359,13 @@ void shellRunCommandOnServer(TAOS *con, char command[]) {
       printf("Query interrupted (%s), %d row(s) in set (%.6fs)\n", taos_errstr(pSql), numOfRows, (et - st) / 1E6);
     }
 
-    // call auto tab
-    callbackAutoTab(command, pSql, false);
   } else {
     int num_rows_affacted = taos_affected_rows(pSql);
     et = taosGetTimestampUs();
     printf("Query OK, %d of %d row(s) in database (%.6fs)\n", num_rows_affacted, num_rows_affacted, (et - st) / 1E6);
+    
+    // call auto tab
+    callbackAutoTab(command, pSql, false);
   }
 
   printf("\n");
