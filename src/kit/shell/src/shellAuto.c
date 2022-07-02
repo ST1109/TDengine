@@ -59,7 +59,7 @@ typedef struct {
 
 
 SWords shellCommands[] = {
-  {"alter database <db_name> <db_options> <anyword> <db_options> <anyword> <db_options> <anyword> <db_options> <anyword> <db_options> <anyword> <db_options> <anyword>;", 0, 0, NULL},
+  {"alter database <db_name> <db_options> <anyword> <db_options> <anyword> <db_options> <anyword> <db_options> <anyword> <db_options> <anyword> <db_options> <anyword>", 0, 0, NULL},
   {"alter dnote <dnodeid> balance column", 0, 0, NULL},
   {"alter table <tb_name> <tb_actions>", 0, 0, NULL},
   {"alter table modify column", 0, 0, NULL},
@@ -67,12 +67,12 @@ SWords shellCommands[] = {
   {"alter user <username> pass", 0, 0, NULL},
   {"alter user <username> privilege read", 0, 0, NULL},
   {"alter user <username> privilege write", 0, 0, NULL},
-  {"create dnode ", 0, 0, NULL},
-  {"create database ", 0, 0, NULL},
-  {"create function ", 0, 0, NULL},
   {"create table <anyword> using <stb_name> tags(", 0, 0, NULL},
+  {"create database ", 0, 0, NULL},
   {"create table <anyword> as ", 0, 0, NULL},
+  {"create dnode ", 0, 0, NULL},
   {"create topic", 0, 0, NULL},
+  {"create function ", 0, 0, NULL},
   {"create user <anyword> pass", 0, 0, NULL},
   {"compact vnode in", 0, 0, NULL},
   {"describe <all_table>", 0, 0, NULL},
@@ -116,7 +116,7 @@ SWords shellCommands[] = {
   {"show users;", 0, 0, NULL},
   {"show variables;", 0, 0, NULL},
   {"show vgroups;", 0, 0, NULL},
-  {"insert into <tb_name> values", 0, 0, NULL},
+  {"insert into <tb_name> values(", 0, 0, NULL},
   {"use <db_name>", 0, 0, NULL}
 };
 
@@ -221,6 +221,24 @@ char * db_options[] = {
   "quorum",
 };
 
+char * data_types[] = {
+  "timestamp",
+  "int",
+  "bigint",
+  "float",
+  "double",
+  "binary",
+  "smallint",
+  "tinyint",
+  "bool",
+  "nchar",
+  "json"
+};
+
+char * key_tags[] = {
+  "tags("
+};
+
 
 //
 //  ------- gobal variant define ---------
@@ -243,10 +261,13 @@ bool    waitAutoFill    = false;
 #define WT_VAR_KEYWORD  5
 #define WT_VAR_TBACTION 6
 #define WT_VAR_DBOPTION 7
-#define WT_VAR_ANYWORD  8
-#define WT_VAR_CNT      9
+#define WT_VAR_DATATYPE 8
+#define WT_VAR_KEYTAGS  9
+#define WT_VAR_ANYWORD  10
+#define WT_VAR_CNT      11
 
 #define WT_FROM_DB_MAX  2  // max get content from db
+#define WT_FROM_DB_CNT  (WT_FROM_DB_MAX + 1)
 
 #define WT_TEXT       0xFF
 
@@ -255,7 +276,7 @@ char dbName[256] = ""; // save use database name;
 STire* tires[WT_VAR_CNT];
 pthread_mutex_t tiresMutex;
 //save thread handle obtain var name from db server
-pthread_t* threads[WT_VAR_CNT];
+pthread_t* threads[WT_FROM_DB_CNT];
 // obtain var name  with sql from server
 char varTypes[WT_VAR_CNT][64] = {
   "<db_name>",
@@ -266,22 +287,16 @@ char varTypes[WT_VAR_CNT][64] = {
   "<keyword>",
   "<tb_actions>",
   "<db_options>",
+  "<data_types>",
+  "<key_tags>",
   "<anyword>"
 };
 
-char varSqls[WT_VAR_CNT][64] = {
+char varSqls[WT_FROM_DB_CNT][64] = {
   "show databases;",
   "show stables;",
   "show tables;",
-  "", // all_table
-  "", // function
-  "", // keyword
-  "", // bt_actions
-  "", // db_options
-  ""  // match any one word
 };
-
-
 
 
 // var words current cursor, if user press any one key except tab, cursorVar can be reset to -1
@@ -436,10 +451,12 @@ bool shellAutoInit() {
   memset(threads, 0, sizeof(pthread_t*) * WT_VAR_CNT);
 
   // generate varType
-  GenerateVarType(WT_VAR_FUNC,     functions,  sizeof(functions)/sizeof(char *));
-  GenerateVarType(WT_VAR_KEYWORD,  keywords,   sizeof(keywords) /sizeof(char *));
+  GenerateVarType(WT_VAR_FUNC,     functions,  sizeof(functions)  /sizeof(char *));
+  GenerateVarType(WT_VAR_KEYWORD,  keywords,   sizeof(keywords)   /sizeof(char *));
   GenerateVarType(WT_VAR_DBOPTION, db_options, sizeof(db_options) /sizeof(char *));
   GenerateVarType(WT_VAR_TBACTION, tb_actions, sizeof(tb_actions) /sizeof(char *));
+  GenerateVarType(WT_VAR_DATATYPE, data_types, sizeof(data_types) /sizeof(char *));
+  GenerateVarType(WT_VAR_KEYTAGS,  key_tags,   sizeof(key_tags)   /sizeof(char *));
 
   return true;
 }
@@ -593,12 +610,14 @@ int writeVarNames(int type, TAOS_RES* tres) {
 }
 
 bool firstMatchCommand(TAOS * con, Command * cmd);
-// obtain var thread from db server 
+//
+//  thread obtain var thread from db server 
+//
 void* varObtainThread(void* param) {
   int type = *(int* )param;
   free(param);
 
-  if (varCon == NULL || type >= WT_VAR_CNT) {
+  if (varCon == NULL || type > WT_FROM_DB_MAX) {
     return NULL;
   }
 
@@ -1198,7 +1217,7 @@ bool matchSelectQuery(TAOS * con, Command * cmd) {
   }
 
   // select and from 
-  if(strncmp(p, "select ", 7) != 0) {
+  if(strncasecmp(p, "select ", 7) != 0) {
     // not select query clause
     return false;
   }
@@ -1254,6 +1273,83 @@ bool matchSelectQuery(TAOS * con, Command * cmd) {
   return ret;
 }
 
+// if is input create fields or tags area, return true
+bool isCreateFieldsArea(char * p) {
+  char * left  = strrchr(p, '(');
+  if (left == NULL) {
+    // like 'create table st'
+    return false;
+  }
+
+  char * right = strrchr(p, ')');
+  if(right == NULL) {
+    // like 'create table st( '
+    return true;
+  }
+
+  if (left > right) {
+    // like 'create table st( ts timestamp, age int) tags(area '
+    return true;
+  }
+
+  return false;
+}
+
+bool matchCreateTable(TAOS * con, Command * cmd) {
+  // if continue press Tab , delete bytes by previous autofill
+  if (cntDel > 0) {
+    deleteCount(cmd, cntDel);
+    cntDel = 0;
+  }
+
+  // match select ...
+  int len = cmd->commandSize;
+  char * p = cmd->command;
+
+  // remove prefix blank
+  while (p[0] == ' ' && len > 0) {
+    p++;
+    len--;
+  }
+
+  // special range
+  if(len < 7 || len > 1024) {
+    return false;
+  }
+
+  // select and from 
+  if(strncasecmp(p, "create table ", 13) != 0) {
+    // not select query clause
+    return false;
+  }
+  p += 13;
+  len -= 13;
+
+  char* ps = strndup(p, len);
+  bool ret = false;
+  char * last = lastWord(ps);
+
+  // check in create fields or tags input area
+  if (isCreateFieldsArea(ps)) {
+    ret = fillWithType(con, cmd, last, WT_VAR_DATATYPE);
+  }
+
+  // tags
+  if (!ret) {
+    // find only one ')' , can insert tags
+    char * p1 = strchr(ps, ')');
+    if (p1) {
+      if(strchr(p1 + 1, ')') == NULL && strstr(p1 + 1, "tags") == NULL) {
+        // can insert tags keyword
+        ret = fillWithType(con, cmd, last, WT_VAR_KEYTAGS);
+      }
+    }
+  }
+
+  free(ps);
+  return ret;
+}
+
 bool matchOther(TAOS * con, Command * cmd) {
   int len = cmd->commandSize;
   char* p = cmd->command;
@@ -1283,22 +1379,30 @@ void pressTabKey(TAOS * con, Command * cmd) {
   varCmd = cmd;
   bool matched = false;
 
+  // manual match like create table st( ...
+  matched = matchCreateTable(con, cmd);
+  if (matched)
+    return ;
+
+  // shellCommands match 
   if (firstMatchIndex == -1) {
     matched = firstMatchCommand(con, cmd);
   } else {
     matched = nextMatchCommand(con, cmd, &shellCommands[firstMatchIndex]);
   }
   if (matched)
-     return ;
+    return ;
 
   // NOT MATCHED ANYONE
   // match other like '\G' ...
   matched = matchOther(con, cmd);
   if (matched)
-     return ;
+    return ;
 
   // manual match like select * from ...
   matched = matchSelectQuery(con, cmd);
+  if (matched)
+    return ;
 
   return ;
 }
@@ -1405,7 +1509,7 @@ bool dealCreateCommand(char * sql) {
   if (strcasecmp(name, "database") == 0) {
     type = WT_VAR_DBNAME;
   } else if (strcasecmp(name, "table") == 0) {
-    if(strstr(sql, "tags") != NULL)
+    if(strstr(sql, " tags") != NULL && strstr(sql, " using ") == NULL)
       type = WT_VAR_STABLE;
     else
       type = WT_VAR_TABLE;
