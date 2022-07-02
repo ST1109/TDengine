@@ -24,6 +24,7 @@
 STire* createTire() {
      STire* tire = malloc(sizeof(STire));
      memset(tire, 0, sizeof(STire));
+     tire->ref = 1; // init is 1
      return tire;
 }
 

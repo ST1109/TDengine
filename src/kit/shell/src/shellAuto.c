@@ -44,6 +44,7 @@ typedef struct SWord{
   char * word;
   int32_t len;
   struct SWord * next;
+  bool free;  // if true need free
 }SWord;
 
 typedef struct {
@@ -58,20 +59,21 @@ typedef struct {
 
 
 SWords shellCommands[] = {
-  {"alter database <db_name> [blocks] [cachelast] [comp] [keep] [replica] [quorum]", 0, 0, NULL},
+  {"alter database <db_name> <db_options> <anyword> <db_options> <anyword> <db_options> <anyword> <db_options> <anyword> <db_options> <anyword> <db_options> <anyword>;", 0, 0, NULL},
   {"alter dnote <dnodeid> balance column", 0, 0, NULL},
-  {"alter table <tb_name> [add column|modify column|drop column|change tag]", 0, 0, NULL},
+  {"alter table <tb_name> <tb_actions>", 0, 0, NULL},
   {"alter table modify column", 0, 0, NULL},
   {"alter topic", 0, 0, NULL},
   {"alter user <username> pass", 0, 0, NULL},
-  {"alter user <username> privilege [read|write]", 0, 0, NULL},
+  {"alter user <username> privilege read", 0, 0, NULL},
+  {"alter user <username> privilege write", 0, 0, NULL},
   {"create dnode ", 0, 0, NULL},
   {"create database ", 0, 0, NULL},
   {"create function ", 0, 0, NULL},
-  {"create table <...> tags", 0, 0, NULL},
-  {"create table <...> as", 0, 0, NULL},
+  {"create table <anyword> using <stb_name> tags(", 0, 0, NULL},
+  {"create table <anyword> as ", 0, 0, NULL},
   {"create topic", 0, 0, NULL},
-  {"create user <...> pass", 0, 0, NULL},
+  {"create user <anyword> pass", 0, 0, NULL},
   {"compact vnode in", 0, 0, NULL},
   {"describe <all_table>", 0, 0, NULL},
 #ifdef TD_ENTERPRISE
@@ -81,23 +83,23 @@ SWords shellCommands[] = {
   {"drop dnode <dnodeid>", 0, 0, NULL},
   {"drop function", 0, 0, NULL},
   {"drop topic", 0, 0, NULL},
-  {"drop table <all_table>", 0, 0, NULL},
-  {"drop user <username>", 0, 0, NULL},
+  {"drop table <all_table>;", 0, 0, NULL},
+  {"drop user <username>;", 0, 0, NULL},
   {"kill connection", 0, 0, NULL},
   {"kill query", 0, 0, NULL},
   {"kill stream", 0, 0, NULL},
-  {"select * from <all_table> where", 0, 0, NULL},
+  {"select * from <all_table> where ", 0, 0, NULL},
   //{"select <expr> union all select <expr>", 0, 0, NULL},
 
-  {"select _block_dist() from <tb_name>", 0, 0, NULL},
+  {"select _block_dist() from <tb_name>;\\G", 0, 0, NULL},
   {"select client_version();", 0, 0, NULL},
   {"select current_user();", 0, 0, NULL},
   {"select database;", 0, 0, NULL},
   {"select server_version();", 0, 0, NULL},
-  {"set max_binary_display_width", 0, 0, NULL},
-  {"show create database <db_name>", 0, 0, NULL},
-  {"show create stable <stb_name>", 0, 0, NULL},
-  {"show create table <tb_name>", 0, 0, NULL},
+  {"set max_binary_display_width ", 0, 0, NULL},
+  {"show create database <db_name>;\\G", 0, 0, NULL},
+  {"show create stable <stb_name>;\\G", 0, 0, NULL},
+  {"show create table <tb_name>;\\G", 0, 0, NULL},
   {"show connections;", 0, 0, NULL},
   {"show databases;", 0, 0, NULL},
   {"show dnodes;", 0, 0, NULL},
@@ -106,7 +108,7 @@ SWords shellCommands[] = {
   {"show mnodes;", 0, 0, NULL},
   {"show queries;", 0, 0, NULL},
   {"show stables;", 0, 0, NULL},
-  {"show stables like", 0, 0, NULL},
+  {"show stables like ", 0, 0, NULL},
   {"show streams;", 0, 0, NULL},
   {"show scores;", 0, 0, NULL},
   {"show tables;", 0, 0, NULL},
@@ -203,6 +205,22 @@ char * functions[] = {
   "upper(",
 };
 
+char * tb_actions[] = {
+  "add column",
+  "modify column",
+  "drop column",
+  "change tag",
+};
+
+char * db_options[] = {
+  "blocks",
+  "cachelast",
+  "comp",
+  "keep",
+  "replica",
+  "quorum",
+};
+
 
 //
 //  ------- gobal variant define ---------
@@ -223,7 +241,12 @@ bool    waitAutoFill    = false;
 #define WT_VAR_ALLTABLE 3
 #define WT_VAR_FUNC     4
 #define WT_VAR_KEYWORD  5
-#define WT_VAR_CNT      6
+#define WT_VAR_TBACTION 6
+#define WT_VAR_DBOPTION 7
+#define WT_VAR_ANYWORD  8
+#define WT_VAR_CNT      9
+
+#define WT_FROM_DB_MAX  2  // max get content from db
 
 #define WT_TEXT       0xFF
 
@@ -240,7 +263,10 @@ char varTypes[WT_VAR_CNT][64] = {
   "<tb_name>",
   "<all_table>",
   "<function>",
-  "<keyword>"
+  "<keyword>",
+  "<tb_actions>",
+  "<db_options>",
+  "<anyword>"
 };
 
 char varSqls[WT_VAR_CNT][64] = {
@@ -250,6 +276,9 @@ char varSqls[WT_VAR_CNT][64] = {
   "", // all_table
   "", // function
   "", // keyword
+  "", // bt_actions
+  "", // db_options
+  ""  // match any one word
 };
 
 
@@ -259,8 +288,6 @@ char varSqls[WT_VAR_CNT][64] = {
 int cursorVar = -1;
 bool varMode = false; // enter var names list mode
 
-// define buffer for SWord->word for variant name used
-char varName[1024] = "";
 
 TAOS*    varCon    = NULL;
 Command* varCmd    = NULL;
@@ -366,8 +393,15 @@ void freeCommand(SWords * command) {
   while (word->next) {
     SWord * tmp = word;
     word = word->next;
+    // if malloc need free
+    if(tmp->free && tmp->word)
+      free(tmp->word);
     free(tmp);
   }
+
+  // if malloc need free
+  if(word->free && word->word)
+    free(word->word);
   free(word);
 }
 
@@ -402,8 +436,10 @@ bool shellAutoInit() {
   memset(threads, 0, sizeof(pthread_t*) * WT_VAR_CNT);
 
   // generate varType
-  GenerateVarType(WT_VAR_FUNC,    functions, sizeof(functions)/sizeof(char *));
-  GenerateVarType(WT_VAR_KEYWORD, keywords,  sizeof(keywords) /sizeof(char *));
+  GenerateVarType(WT_VAR_FUNC,     functions,  sizeof(functions)/sizeof(char *));
+  GenerateVarType(WT_VAR_KEYWORD,  keywords,   sizeof(keywords) /sizeof(char *));
+  GenerateVarType(WT_VAR_DBOPTION, db_options, sizeof(db_options) /sizeof(char *));
+  GenerateVarType(WT_VAR_TBACTION, tb_actions, sizeof(tb_actions) /sizeof(char *));
 
   return true;
 }
@@ -485,7 +521,6 @@ void putBackAutoPtr(int type, STire* tire) {
   if (tire == NULL) {
     return ;
   }
-  bool needFree = false;
 
   pthread_mutex_lock(&tiresMutex);
   if (tires[type] != tire) {
@@ -501,9 +536,6 @@ void putBackAutoPtr(int type, STire* tire) {
   }
   pthread_mutex_unlock(&tiresMutex);
 
-  if (needFree) {
-    freeTire(tire);
-  }
   return ;
 }
 
@@ -591,9 +623,8 @@ void* varObtainThread(void* param) {
   return NULL;
 }
 
-// only match next one word from all match words
-bool matchNextPrefix(STire* tire, char* pre, char* output) {
-  bool ret = false;
+// only match next one word from all match words, return valuue must free by caller
+char* matchNextPrefix(STire* tire, char* pre) {
   SMatch* match = NULL;
 
   // re-use last result
@@ -630,9 +661,8 @@ bool matchNextPrefix(STire* tire, char* pre, char* output) {
 
   if (cursorVar == -1) {
     // first
-    strcpy(output, match->head->word);
     cursorVar = 0;
-    return true;    
+    return strdup(match->head->word);    
   }
 
   // according to cursorVar , calculate next one
@@ -641,8 +671,6 @@ bool matchNextPrefix(STire* tire, char* pre, char* output) {
   while (item) {
     if (i == cursorVar + 1) {
       // found next position ok
-      strcpy(output, item->word);
-      ret = true;
       if (item->next == NULL) {
         // match last item, reset cursorVar to head
         cursorVar = -1;
@@ -650,15 +678,15 @@ bool matchNextPrefix(STire* tire, char* pre, char* output) {
         cursorVar = i;
       }
 
-      break;
+      return strdup(item->word);
     }
 
     // check end item
     if (item->next == NULL) {
       // if cursorVar > var list count, return last and reset cursorVar
-      strcpy(output, item->word);
-      ret = true;
       cursorVar = -1;
+
+      return strdup(item->word);
     }
 
     // move next
@@ -666,15 +694,24 @@ bool matchNextPrefix(STire* tire, char* pre, char* output) {
     i++;
   }
 
-  return ret;
+  return NULL;
 }
 
-// search pre word from tire tree, return value is global buffer varName[], so need not free
+// search pre word from tire tree, return value must free by caller
 char* tireSearchWord(int type, char* pre) {
   if (type == WT_TEXT) {
     return NULL;
   }
 
+  if(type > WT_FROM_DB_MAX) {
+    // NOT FROM DB , tires[type] alwary not null
+    STire* tire = tires[type];
+    if (tire == NULL)
+      return NULL;
+    return  matchNextPrefix(tire, pre);
+  }
+
+  // TYPE CONTEXT GET FROM DB
   pthread_mutex_lock(&tiresMutex);
 
   // check need obtain from server
@@ -707,16 +744,11 @@ char* tireSearchWord(int type, char* pre) {
     return NULL;
   }
 
-  // auto tab function is single thread operate, so here set global varName is appropriate
-  bool ret = matchNextPrefix(tire, pre, varName);
+  char* str = matchNextPrefix(tire, pre);
   // used finish, put back pointer to autoptr array
   putBackAutoPtr(type, tire);
 
-  if (ret) {
-    return varName;
-  }
-
-  return NULL;
+  return str;
 }
 
 // match var word, word1 is pattern , word2 is input from shell 
@@ -726,27 +758,33 @@ bool matchVarWord(SWord* word1, SWord* word2) {
   memcpy(pre, word2->word, word2->len);
   pre[word2->len] = 0;
 
-  char* word = NULL;
+  char* str = NULL;
   if (word1->type == WT_VAR_ALLTABLE) {
     // ALL_TABLE
-    word = tireSearchWord(WT_VAR_STABLE, pre);
-    if (word == NULL) {
-      word = tireSearchWord(WT_VAR_TABLE, pre);
-      if(word == NULL)
+    str = tireSearchWord(WT_VAR_STABLE, pre);
+    if (str == NULL) {
+      str = tireSearchWord(WT_VAR_TABLE, pre);
+      if(str == NULL)
         return false;
     }
   } else {
     // OTHER
-    word = tireSearchWord(word1->type, pre);
-    if (word == NULL) {
+    str = tireSearchWord(word1->type, pre);
+    if (str == NULL) {
       // not found or word1->type variable list not obtain from server, return not match
       return false;
     }
   }
 
+  // free previous malloc
+  if(word1->free && word1->word) {
+    free(word1->word);
+  }
+
   // save
-  word1->word = word;
-  word1->len  = strlen(word);
+  word1->word = str;
+  word1->len  = strlen(str);
+  word1->free = true; // need free
   
   return true;
 }
@@ -999,8 +1037,8 @@ void showHelp(TAOS * con, Command * cmd) {
 bool fillWithType(TAOS * con, Command * cmd, char* pre, int type) {
   // get type
   STire* tire = tires[type];
-  char str[1024] = {0};
-  if (!matchNextPrefix(tire, pre, str)) {
+  char* str = matchNextPrefix(tire, pre);
+  if (str == NULL) {
     return false;
   }
 
@@ -1011,21 +1049,23 @@ bool fillWithType(TAOS * con, Command * cmd, char* pre, int type) {
   int count = strlen(part);
   insertChar(cmd, part, count);
   cntDel = count; // next press tab delete current append count
+
+  free(str);
   return true;
 }
 
 // fill with type
 bool fillTableName(TAOS * con, Command * cmd, char* pre) {
   // search stable and table
-  char * word = tireSearchWord(WT_VAR_STABLE, pre);
-  if (word == NULL) {
-    word = tireSearchWord(WT_VAR_TABLE, pre);
-    if(word == NULL)
+  char * str = tireSearchWord(WT_VAR_STABLE, pre);
+  if (str == NULL) {
+    str = tireSearchWord(WT_VAR_TABLE, pre);
+    if(str == NULL)
       return false;
   }
 
   // need insert part string
-  char * part = word + strlen(pre); 
+  char * part = str + strlen(pre); 
 
   // delete autofill count last append
   if(cntDel > 0) {
@@ -1037,6 +1077,8 @@ bool fillTableName(TAOS * con, Command * cmd, char* pre) {
   int count = strlen(part);
   insertChar(cmd, part, count);
   cntDel = count; // next press tab delete current append count
+  
+  free(str);
   return true;
 }
 
@@ -1333,7 +1375,7 @@ bool dealUseDB(char * sql) {
   }
   // TABLE set null
   tire = tires[WT_VAR_TABLE];
-  tires[WT_VAR_STABLE] = NULL;
+  tires[WT_VAR_TABLE] = NULL;
   if(tire) {
     freeTire(tire);
   }
