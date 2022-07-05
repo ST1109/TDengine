@@ -267,6 +267,8 @@ cmake .. -G "NMake Makefiles"
 nmake
 ```
 
+If you use Visual Studio 2022, the only change is the default path for `vcvarsall.bat`, which is `C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvarsall.bat`.
+
 ### On macOS platform
 
 Please install XCode command line tools and cmake. Verified with XCode 11.4+ on Catalina and Big Sur.
