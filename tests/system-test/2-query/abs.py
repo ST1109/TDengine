@@ -558,6 +558,105 @@ class TDTestCase:
         tdSql.query(
             "select abs(c1+t1)*t1 from stb1 where abs(c1)/floor(abs(ceil(t1))) ==1")
 
+    def group_test(self):
+        tdSql.execute(" use testdb ")
+        tdSql.error("select abs(c1) from stb1 group by t1 order by t1 ")
+        tdSql.error("select abs(c1) from stb1 group by c1 order by t1 ")
+        tdSql.error("select abs(t1) from stb1 group by c1 order by t1 ")
+        tdSql.error("select abs(c1) from stb1 group by tbname order by tbname ")
+
+        tdSql.query("select abs(t1) from stb1 group by t1 order by t1 ")
+        tdSql.query("select abs(c1) from stb1 group by c1 order by c1 ")
+        tdSql.checkRows(11)
+        tdSql.query("select abs(c1) from stb1 group by abs(c1) order by abs(c1)")
+        tdSql.checkRows(11)
+        tdSql.query("select abs(c1+c3) from stb1 group by abs(c1+c3) order by abs(c1+c3)")
+        tdSql.checkRows(11)
+        tdSql.query("select abs(c1+c3)+c2 from stb1 group by abs(c1+c3)+c2 order by abs(c1+c3)+c2")
+        tdSql.checkRows(11)
+        tdSql.query("select abs(c1+c3)+abs(c2) from stb1 group by abs(c1+c3)+abs(c2) order by abs(c1+c3)+abs(c2)")
+        tdSql.checkRows(11)
+        
+        tdSql.query("select t1 from stb1 where abs(c1+t1)=1 partition by tbname")
+        tdSql.checkData(0,0,0)
+        
+        tdSql.query("select tbname , abs(c1) from stb1 partition by tbname order by tbname")
+        tdSql.checkRows(25)
+        tdSql.checkData(0,1,8)
+        tdSql.checkData(23,1,1)
+        tdSql.checkData(24,1,None)
+        
+        tdSql.query("select tbname , abs(c1) from stb1 partition by t1 order by t1")
+        tdSql.checkRows(25)
+        tdSql.checkData(0,1,8)
+        tdSql.checkData(23,1,1)
+        tdSql.checkData(24,1,None)
+
+        tdSql.query("select tbname , abs(c1) from stb1 partition by c2 order by c1")
+        tdSql.checkRows(25)
+        tdSql.checkData(24,1,9)
+
+        tdSql.query("select tbname , abs(c1) from stb1 partition by c2 order by c2")
+        tdSql.checkRows(25)
+        tdSql.checkData(24,1,8)
+
+        tdSql.query("select tbname , abs(t1) from stb1 partition by c2 order by t1")
+        tdSql.checkRows(25)
+        tdSql.checkData(24,1,3)
+
+        tdSql.query("select abs(c1) , abs(t1) from stb1 partition by c2 order by t1")
+        tdSql.checkRows(25)
+        tdSql.checkData(16,0,None)
+        tdSql.checkData(16,1,3)
+
+        tdSql.query("select abs(c1) , abs(t1) ,c2 from stb1 partition by c2 order by t1")
+        tdSql.checkRows(25)
+        tdSql.checkData(16,0,None)
+        tdSql.checkData(16,1,3)
+        tdSql.checkData(16,2,None)
+
+        tdSql.query("select abs(c1) , abs(t1) ,c2 from stb1 partition by tbname order by tbname")
+        tdSql.checkRows(25)
+        tdSql.checkData(16,0,7)
+        tdSql.checkData(16,1,3)
+        tdSql.checkData(16,2,77777)
+
+        tdSql.query("select abs(c1) , abs(t1) ,c2 from stb1 partition by t1 order by t1")
+        tdSql.checkRows(25)
+        tdSql.checkData(16,0,7)
+        tdSql.checkData(16,1,3)
+        tdSql.checkData(16,2,77777)
+
+        tdSql.query("select abs(c1) , abs(t1) ,c2 from stb1 partition by abs(c1) order by abs(c1)")
+        tdSql.checkRows(25)
+        tdSql.checkData(16,0,6)
+        tdSql.checkData(16,1,3)
+        tdSql.checkData(16,2,66666)
+
+        tdSql.query("select abs(ceil(c1)) , abs(floor(t1)) ,floor(c2) from stb1 partition by abs(floor(c1)) order by abs(c1)")
+        tdSql.checkRows(25)
+        tdSql.checkData(16,0,6)
+        tdSql.checkData(16,1,3)
+        tdSql.checkData(16,2,66666)
+
+        tdSql.query("select abs(ceil(c1-2)) , abs(floor(t1+1)) ,floor(c2-c1) from stb1 partition by abs(floor(c1)) order by abs(c1)")
+        tdSql.checkRows(25)
+        tdSql.checkData(16,0,4.000000000)
+        tdSql.checkData(16,1,4.000000000)
+        tdSql.checkData(16,2,66660.000000000)
+
+        # interval 
+        tdSql.query("select max(c1) from stb1 interval(50s) sliding(30s)")
+        tdSql.checkRows(13)
+        # bug need fix
+        # tdSql.query('select max(c1) from stb1 where ts>="2022-07-06 16:00:00.000 " and ts < "2022-07-06 17:00:00.000 " interval(50s) sliding(30s) fill(NULL)')
+        # tdSql.checkRows(40)
+        # tdSql.checkData(0,0,None)
+        tdSql.query('select max(c1) from stb1 where ts>="2022-07-06 16:00:00.000 " and ts < "2022-07-06 17:00:00.000 " interval(50s) sliding(30s)')
+        tdSql.checkRows(5)
+
+
+
     def support_super_table_test(self):
         tdSql.execute(" use testdb ")
         self.check_result_auto( " select c1 from stb1 order by ts " , "select abs(c1) from stb1 order by ts" )
