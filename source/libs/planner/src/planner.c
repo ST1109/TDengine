@@ -25,24 +25,38 @@ static void dumpQueryPlan(SQueryPlan* pPlan) {
   taosMemoryFree(pStr);
 }
 
+static void dumpQueryNode(SNode* pNode, char* flag) {
+  char* pStr = NULL;
+  int32_t len = 0;
+  nodesNodeToString((SNode*)pNode, false, &pStr, &len);
+  printf("+++++++++++++++++++++++++++++++%s, len: %d+++++++++++++++++++++++++++++++++++++++++\n", flag, len);
+  printf("%s\n", pStr);
+  taosMemoryFree(pStr);
+}
+
 int32_t qCreateQueryPlan(SPlanContext* pCxt, SQueryPlan** pPlan, SArray* pExecNodeList) {
   SLogicSubplan*   pLogicSubplan = NULL;
   SQueryLogicPlan* pLogicPlan = NULL;
 
   int32_t code = createLogicPlan(pCxt, &pLogicSubplan);
   if (TSDB_CODE_SUCCESS == code) {
+    dumpQueryNode((SNode*)pLogicSubplan, "raw logic plan");
     code = optimizeLogicPlan(pCxt, pLogicSubplan);
   }
   if (TSDB_CODE_SUCCESS == code) {
+    dumpQueryNode((SNode*)pLogicSubplan, "optimized logic plan");
     code = splitLogicPlan(pCxt, pLogicSubplan);
   }
   if (TSDB_CODE_SUCCESS == code) {
+    dumpQueryNode((SNode*)pLogicSubplan, "split logic plan");
     code = scaleOutLogicPlan(pCxt, pLogicSubplan, &pLogicPlan);
   }
   if (TSDB_CODE_SUCCESS == code) {
+    //dumpQueryNode((SNode*)pLogicSubplan, "scaled logic plan");
     code = createPhysiPlan(pCxt, pLogicPlan, pPlan, pExecNodeList);
   }
   if (TSDB_CODE_SUCCESS == code) {
+    //dumpQueryNode((SNode*)pPlan, "physical plan");
     dumpQueryPlan(*pPlan);
   }
 
