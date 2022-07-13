@@ -60,13 +60,16 @@ typedef struct {
 
 SWords shellCommands[] = {
   {"alter database <db_name> <db_options> <anyword> <db_options> <anyword> <db_options> <anyword> <db_options> <anyword> <db_options> <anyword> <db_options> <anyword>", 0, 0, NULL},
-  {"alter dnote <dnodeid> balance column", 0, 0, NULL},
+  {"alter dnode <dnode_id> balance ", 0, 0, NULL},
+  {"alter dnode <dnode_id> resetlog;", 0, 0, NULL},
+  {"alter dnode <dnode_id> debugFlag 141;", 0, 0, NULL},
+  {"alter dnode <dnode_id> monitor 1;", 0, 0, NULL},
   {"alter table <tb_name> <tb_actions>", 0, 0, NULL},
   {"alter table modify column", 0, 0, NULL},
   {"alter topic", 0, 0, NULL},
-  {"alter user <username> pass", 0, 0, NULL},
-  {"alter user <username> privilege read", 0, 0, NULL},
-  {"alter user <username> privilege write", 0, 0, NULL},
+  {"alter user <user_name> pass", 0, 0, NULL},
+  {"alter user <user_name> privilege read", 0, 0, NULL},
+  {"alter user <user_name> privilege write", 0, 0, NULL},
   {"create table <anyword> using <stb_name> tags(", 0, 0, NULL},
   {"create database ", 0, 0, NULL},
   {"create table <anyword> as ", 0, 0, NULL},
@@ -80,26 +83,24 @@ SWords shellCommands[] = {
   {"delete from <all_table> where", 0, 0, NULL},
 #endif
   {"drop database <db_name>", 0, 0, NULL},
-  {"drop dnode <dnodeid>", 0, 0, NULL},
+  {"drop dnode <dnode_id>", 0, 0, NULL},
   {"drop function", 0, 0, NULL},
   {"drop topic", 0, 0, NULL},
   {"drop table <all_table>;", 0, 0, NULL},
-  {"drop user <username>;", 0, 0, NULL},
+  {"drop user <user_name>;", 0, 0, NULL},
   {"kill connection", 0, 0, NULL},
   {"kill query", 0, 0, NULL},
   {"kill stream", 0, 0, NULL},
   {"select * from <all_table> where ", 0, 0, NULL},
-  //{"select <expr> union all select <expr>", 0, 0, NULL},
-
-  {"select _block_dist() from <tb_name>;\\G", 0, 0, NULL},
+  {"select _block_dist() from <all_table> \\G;", 0, 0, NULL},
   {"select client_version();", 0, 0, NULL},
   {"select current_user();", 0, 0, NULL},
   {"select database;", 0, 0, NULL},
   {"select server_version();", 0, 0, NULL},
   {"set max_binary_display_width ", 0, 0, NULL},
-  {"show create database <db_name>;\\G", 0, 0, NULL},
-  {"show create stable <stb_name>;\\G", 0, 0, NULL},
-  {"show create table <tb_name>;\\G", 0, 0, NULL},
+  {"show create database <db_name> \\G;", 0, 0, NULL},
+  {"show create stable <stb_name> \\G;", 0, 0, NULL},
+  {"show create table <tb_name> \\G;", 0, 0, NULL},
   {"show connections;", 0, 0, NULL},
   {"show databases;", 0, 0, NULL},
   {"show dnodes;", 0, 0, NULL},
@@ -125,6 +126,7 @@ char * keywords[] = {
   "from ",
   "fill(",
   "limit ",
+  "where ",
   "interval(",
   "order by asc ",
   "order by desc ",
@@ -138,16 +140,28 @@ char * keywords[] = {
   "soffset ",
   "state_window(",
   "today() ",
-  "where ",
   "union all select ",
 };
 
 char * functions[] = {
+  "count(",
+  "sum(",
+  "avg(",
+  "last(",
+  "last_row(",
+  "top(",
+  "interp(",
+  "max(",
+  "min(",
+  "now()",
+  "today()",
+  "percentile(",
+  "tail(",
+  "pow(",  
   "abs(",
   "atan(",
   "acos(",
   "asin(",
-  "avg(",
   "apercentile(",
   "bottom(",
   "cast(",
@@ -156,7 +170,6 @@ char * functions[] = {
   "cos(",
   "concat(",
   "concat_ws(",
-  "count(",
   "csum(",
   "diff(",
   "derivative(",
@@ -165,10 +178,7 @@ char * functions[] = {
   "floor(",
   "hyperloglog(",
   "histogram(",
-  "interp(",
   "irate(",
-  "last(",
-  "last_row(",
   "leastsquares(",
   "length(",
   "log(",
@@ -176,12 +186,6 @@ char * functions[] = {
   "ltrim(",
   "mavg(",
   "mode(",
-  "max(",
-  "min(",
-  "now()",
-  "pow(",  
-  "percentile(",
-  "tail(",
   "tan(",
   "round(",
   "rtrim(",
@@ -189,7 +193,6 @@ char * functions[] = {
   "sin(",
   "spread(",
   "substr(",
-  "sum(",
   "statecount(",
   "stateduration(",
   "stddev(",
@@ -198,8 +201,6 @@ char * functions[] = {
   "timezone(",
   "timetruncate(",
   "twa(",
-  "today()",
-  "top(",
   "to_unixtimestamp(",
   "unique(",
   "upper(",
@@ -256,17 +257,19 @@ bool    waitAutoFill    = false;
 #define WT_VAR_DBNAME   0
 #define WT_VAR_STABLE   1
 #define WT_VAR_TABLE    2
-#define WT_VAR_ALLTABLE 3
-#define WT_VAR_FUNC     4
-#define WT_VAR_KEYWORD  5
-#define WT_VAR_TBACTION 6
-#define WT_VAR_DBOPTION 7
-#define WT_VAR_DATATYPE 8
-#define WT_VAR_KEYTAGS  9
-#define WT_VAR_ANYWORD  10
-#define WT_VAR_CNT      11
+#define WT_VAR_DNODEID  3
+#define WT_VAR_USERNAME 4
+#define WT_VAR_ALLTABLE 5
+#define WT_VAR_FUNC     6
+#define WT_VAR_KEYWORD  7
+#define WT_VAR_TBACTION 8
+#define WT_VAR_DBOPTION 9
+#define WT_VAR_DATATYPE 10
+#define WT_VAR_KEYTAGS  11
+#define WT_VAR_ANYWORD  12
+#define WT_VAR_CNT      13
 
-#define WT_FROM_DB_MAX  2  // max get content from db
+#define WT_FROM_DB_MAX  4  // max get content from db
 #define WT_FROM_DB_CNT  (WT_FROM_DB_MAX + 1)
 
 #define WT_TEXT       0xFF
@@ -282,6 +285,8 @@ char varTypes[WT_VAR_CNT][64] = {
   "<db_name>",
   "<stb_name>",
   "<tb_name>",
+  "<dnode_id>",
+  "<user_name>",
   "<all_table>",
   "<function>",
   "<keyword>",
@@ -296,6 +301,8 @@ char varSqls[WT_FROM_DB_CNT][64] = {
   "show databases;",
   "show stables;",
   "show tables;",
+  "show dnodes;",
+  "show users;"
 };
 
 
@@ -309,6 +316,22 @@ Command* varCmd    = NULL;
 SMatch*  lastMatch = NULL; // save last match result 
 int      cntDel    = 0;   // delete byte count after next press tab
 
+
+// show auto tab introduction
+void printfIntroduction() {
+  printf("   ****************************  SUPPORT TAB KEY ************************************\n"); 
+  printf("   *   Taos shell support press TAB key to complete word. You can try it.           *\n"); 
+  printf("   *   Anywhere press SPACE key following TAB key, You'll get surprise.             *\n");
+  printf("   *   SUPPORT SHORTCUT:                                                            *\n");
+  printf("   *    [ Ctrl + A ]   ......  move cursor to line [A]head                          *\n");
+  printf("   *    [ Ctrl + M ]   ......  move cursor to line [M]iddle                         *\n");
+  printf("   *    [ Ctrl + E ]   ......  move cursor to line [E]nd                            *\n");
+  printf("   *    [ Ctrl + L ]   ......  clean screen                                         *\n");
+  printf("   *    [ Ctrl + K ]   ......  clean after cursor                                   *\n");
+  printf("   *    [ Ctrl + U ]   ......  clean before cursor                                  *\n");
+  printf("   *                                                                                *\n");
+  printf("   **********************************************************************************\n\n"); 
+}
 
 //
 //  -------------------  parse words --------------------------
@@ -421,7 +444,7 @@ void freeCommand(SWords * command) {
 }
 
 void GenerateVarType(int type, char** p, int count) {
-  STire* tire = createTire();
+  STire* tire = createTire(TIRE_LIST);
   for (int i = 0; i < count; i++) {
     insertWord(tire, p[i]);
   }
@@ -434,6 +457,7 @@ void GenerateVarType(int type, char** p, int count) {
 //
 //  -------------------- shell auto ----------------
 //
+
 
 // init shell auto funciton , shell start call once 
 bool shellAutoInit() {
@@ -457,6 +481,8 @@ bool shellAutoInit() {
   GenerateVarType(WT_VAR_TBACTION, tb_actions, sizeof(tb_actions) /sizeof(char *));
   GenerateVarType(WT_VAR_DATATYPE, data_types, sizeof(data_types) /sizeof(char *));
   GenerateVarType(WT_VAR_KEYTAGS,  key_tags,   sizeof(key_tags)   /sizeof(char *));
+
+  printfIntroduction();
 
   return true;
 }
@@ -571,27 +597,23 @@ int writeVarNames(int type, TAOS_RES* tres) {
     return 0;
   }
 
-  // sql
-  int colIdx = 0;
-  
-  int num_fields = taos_num_fields(tres);
   TAOS_FIELD *fields = taos_fetch_fields(tres);
-
-  // check type
-  if (colIdx >= num_fields || fields[colIdx].type != TSDB_DATA_TYPE_BINARY) {
-    return 0;
-  }
-
   // create new tires
-  STire* tire = createTire();
+  char tireType = type == WT_VAR_TABLE ? TIRE_TREE : TIRE_LIST;
+  STire* tire = createTire(tireType);
 
   // enum rows
   char name[1024];
   int numOfRows = 0;
   do {
     int32_t* lengths = taos_fetch_lengths(tres);
-    int32_t bytes = lengths[colIdx];
-    memcpy(name, row[colIdx], bytes);
+    int32_t bytes = lengths[0];
+    if(fields[0].type == TSDB_DATA_TYPE_SMALLINT) {
+      sprintf(name,"%d", *(int16_t*)row[0]);
+    } else {
+      memcpy(name, row[0], bytes);
+    }
+    
     name[bytes] = 0;  //set string end 
     // insert to tire
     insertWord(tire, name);
@@ -1425,6 +1447,9 @@ void pressOtherKey(char c) {
     freeMatch(lastMatch);
     lastMatch = NULL;
   }
+
+  //printf(" -> %d <-\n", c);
+
 }
 
 // put name into name, return name length
@@ -1513,6 +1538,8 @@ bool dealCreateCommand(char * sql) {
       type = WT_VAR_STABLE;
     else
       type = WT_VAR_TABLE;
+  } else if (strcasecmp(name, "user") == 0) {
+    type = WT_VAR_USERNAME;
   } else {
     // no match , return 
     return true;
@@ -1559,6 +1586,10 @@ bool dealDropCommand(char * sql) {
     type = WT_VAR_DBNAME;
   } else if (strcasecmp(name, "table") == 0) {
     type = WT_VAR_ALLTABLE;
+  } else if (strcasecmp(name, "dnode") == 0) {
+    type = WT_VAR_DNODEID;
+  } else if (strcasecmp(name, "user") == 0) {
+    type = WT_VAR_USERNAME;
   } else {
     // no match , return 
     return true;

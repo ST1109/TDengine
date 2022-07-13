@@ -41,6 +41,7 @@ extern void deleteChar(Command *cmd);
 extern void moveCursorLeft(Command *cmd);
 extern void moveCursorRight(Command *cmd);
 extern void positionCursorHome(Command *cmd);
+extern void positionCursorMiddle(Command *cmd);
 extern void positionCursorEnd(Command *cmd);
 extern void showOnScreen(Command *cmd);
 extern void updateBuffer(Command *cmd);

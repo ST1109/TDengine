@@ -19,26 +19,41 @@
 // 
 // The prefix search tree is a efficient storage words and search words tree, it support 95 visible ascii code character
 //
-#define FIRST_ASCII 32   // first visiable char is space
-#define LAST_ASCII  126  // last visilbe char is '~'
+#define FIRST_ASCII 40   // first visiable char is '0'
+#define LAST_ASCII  122  // last visilbe char is 'z'
 
 // capacity save char is 95
 #define CHAR_CNT   (LAST_ASCII - FIRST_ASCII + 1)
 #define MAX_WORD_LEN 256 // max insert word length
 
+// define STire
+#define TIRE_TREE  0
+#define TIRE_LIST  1
+
 typedef struct STireNode {
-    struct STireNode* d[CHAR_CNT];
+    struct STireNode** d;
     bool   end; // record end flag  
 }STireNode;
 
+typedef struct StrName {
+    char * name;
+    struct StrName * next;
+}StrName;
+
+
 typedef struct STire {
+    char type;  // see define TIRE_
     STireNode root;
+
+    StrName *  head;
+    StrName *  tail;
+
     int count;      // all count 
     int ref;
 }STire;
 
 typedef struct SMatchNode {
-    char word[MAX_WORD_LEN];
+    char* word;
     struct SMatchNode* next;
 }SMatchNode;
 
@@ -54,7 +69,7 @@ typedef struct SMatch {
 // ----------- interface -------------
 
 // create prefix search tree, return value call freeTire to free 
-STire* createTire();
+STire* createTire(char type);
 
 // destroy prefix search tree
 void freeTire(STire* tire);

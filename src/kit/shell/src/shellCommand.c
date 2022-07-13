@@ -182,6 +182,16 @@ void positionCursorHome(Command *cmd) {
   }
 }
 
+void positionCursorMiddle(Command *cmd) {
+  if (cmd->endOffset > 0) {
+    clearScreen(cmd->endOffset + prompt_size, cmd->screenOffset + prompt_size);
+    cmd->cursorOffset = cmd->commandSize/2;
+    cmd->screenOffset = cmd->endOffset/2;
+    showOnScreen(cmd);
+  }
+}
+
+
 void positionCursorEnd(Command *cmd) {
   assert(cmd->cursorOffset <= cmd->commandSize && cmd->endOffset >= cmd->screenOffset);
 
