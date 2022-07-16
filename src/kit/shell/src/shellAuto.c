@@ -333,6 +333,95 @@ void printfIntroduction() {
   printf("   **********************************************************************************\n\n"); 
 }
 
+void showHelp() {
+  printf("\nThe following are supported commands for Taos shell:");
+  printf("\n\
+  ----- A ----- \n\
+    alter database <db_name> <db_options> \n\
+    alter dnode <dnode_id> balance \n\
+    alter dnode <dnode_id> resetlog;\n\
+    alter dnode <dnode_id> debugFlag 141;\n\
+    alter dnode <dnode_id> monitor 1;\n\
+    alter table <tb_name> ADD COLUMN <field_name> <data_type>; \n\
+    alter table <tb_name> DROP COLUMN <field_name>; \n\
+    alter table <tb_name> MODIFY COLUMN <field_name> <data_type(length)>;\n\
+    alter topic <topic_name>\n\
+    alter user <user_name> pass\n\
+    alter user <user_name> privilege read ;\n\
+    alter user <user_name> privilege write ;\n\
+  ----- C ----- \n\
+    create table <tb_name> using <stb_name> tags ...\n\
+    create database <db_name>;\n\
+    create table <anyword> as ...\n\
+    create dnode <dnode_id>\n\
+    create topic <top_name>\n\
+    create function <function_name>\n\
+    create user <user_name> pass <password>;\n\
+    compact vnode in (vgid,vgid,vgid);\n\
+  ----- D ----- \n\
+    describe <all_table> ;\n\
+    delete from <all_table> where ... \n\
+    drop database <db_name>;\n\
+    drop dnode <dnode_id>;\n\
+    drop function <function_id>;\n\
+    drop topic <topic_id>;\n\
+    drop table <all_table>;\n\
+    drop user <user_name>;\n\
+  ----- K ----- \n\
+    kill connection <connection_id>; \n\
+    kill query <query_id>; \n\
+    kill stream <stream_id>; \n\
+  ----- S ----- \n\
+    select * from <all_table> where ... \n\
+    select _block_dist() from <all_table>;\n\
+    select client_version();\n\
+    select current_user();\n\
+    select database;\n\
+    select server_version();\n\
+    set max_binary_display_width <width>;  \n\
+    show create database <db_name>;\n\
+    show create stable <stb_name>;\n\
+    show create table <tb_name>;\n\
+    show connections;\n\
+    show databases;\n\
+    show dnodes;\n\
+    show functions;\n\
+    show modules;\n\
+    show mnodes;\n\
+    show queries;\n\
+    show stables;\n\
+    show stables like '<regular expression>';  note: regular expression only support '_' and '%%' match.\n\
+    show streams;\n\
+    show scores;\n\
+    show tables;\n\
+    show tables like '<regular expression>'; \n\
+    show users;\n\
+    show variables;\n\
+    show vgroups;\n\
+  ----- I ----- \n\
+    insert into <tb_name> values(...) ;\n\
+  ----- U ----- \n\
+    use <db_name>;");
+
+  printf("\n\n");
+  
+  //define in getDuration() function
+  printf("\
+  Timestamp expression Format:\n\
+    b - nanosecond \n\
+    u - microsecond \n\
+    a - millisecond \n\
+    s - second \n\
+    m - minute \n\
+    h - hour \n\
+    d - day \n\
+    w - week \n\
+    now - current time \n\
+  Example : \n\
+    select * from t1 where ts > now - 2w + 3d and ts <= now - 1w -2h ;\n");
+  printf("\n");
+}
+
 //
 //  -------------------  parse words --------------------------
 //
@@ -1069,11 +1158,6 @@ bool nextMatchCommand(TAOS * con, Command * cmd, SWords * firstMatch) {
   return true;
 }
 
-// show help
-void showHelp(TAOS * con, Command * cmd) {
-  
-}
-
 // fill with type
 bool fillWithType(TAOS * con, Command * cmd, char* pre, int type) {
   // get type
@@ -1392,7 +1476,8 @@ void pressTabKey(TAOS * con, Command * cmd) {
   // check 
   if (cmd->commandSize == 0) { 
     // empty
-    showHelp(con, cmd);
+    showHelp();
+    showOnScreen(cmd);
     return ;
   } 
 
