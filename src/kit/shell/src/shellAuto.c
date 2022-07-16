@@ -123,13 +123,15 @@ SWords shellCommands[] = {
 
 char * keywords[] = {
   "and ",
+  "asc ",
+  "desc ",
   "from ",
   "fill(",
   "limit ",
   "where ",
   "interval(",
-  "order by asc ",
-  "order by desc ",
+  "order by ",
+  "order by ",
   "offset ",
   "or ",
   "group by ",
