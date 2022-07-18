@@ -1872,15 +1872,18 @@ static SSDataBlock* sysTableScanUserTags(SOperatorInfo* pOperator) {
       pColInfoData = taosArrayGet(p->pDataBlock, 2);
       colDataAppend(pColInfoData, numOfRows, stableName, false);
 
+      // tag name
       char tagName[TSDB_COL_NAME_LEN + VARSTR_HEADER_SIZE] = {0};
       STR_TO_VARSTR(tagName, smr.me.stbEntry.schemaTag.pSchema[i].name);
       pColInfoData = taosArrayGet(p->pDataBlock, 3);
       colDataAppend(pColInfoData, numOfRows, tagName, false);
 
+      // tag type
       int8_t tagType = smr.me.stbEntry.schemaTag.pSchema[i].type;
       pColInfoData = taosArrayGet(p->pDataBlock, 4);
       colDataAppend(pColInfoData, numOfRows, (char*)&tagType, false);
 
+      // tag value
       STagVal tagVal = {0};
       tagVal.cid = smr.me.stbEntry.schemaTag.pSchema[i].colId;
       char*    tagData = NULL;
@@ -1922,6 +1925,7 @@ static SSDataBlock* sysTableScanUserTags(SOperatorInfo* pOperator) {
       colDataAppend(pColInfoData, numOfRows, tagVarChar,
                     (tagData == NULL) || (tagType == TSDB_DATA_TYPE_JSON && tTagIsJsonNull(tagData)));
       taosMemoryFree(tagVarChar);
+
       ++numOfRows;
     }
     metaReaderClear(&smr);
