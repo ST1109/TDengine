@@ -107,7 +107,7 @@ typedef struct STscStmt {
 #define STMT_RET(c) do { int32_t _code = c; if (_code != TSDB_CODE_SUCCESS) { terrno = _code; } return _code; } while (0)
 #define STMT_ERR_JRET(c) do { code = c; if (code != TSDB_CODE_SUCCESS) { terrno = code; goto _return; } } while (0)
 
-TAOS_STMT *stmtInit(TAOS *taos);
+TAOS_STMT *stmtInit(STscObj* taos);
 int stmtClose(TAOS_STMT *stmt);
 int stmtExec(TAOS_STMT *stmt);
 const char *stmtErrstr(TAOS_STMT *stmt);
@@ -116,8 +116,11 @@ int stmtAffectedRowsOnce(TAOS_STMT *stmt);
 int stmtPrepare(TAOS_STMT *stmt, const char *sql, unsigned long length);
 int stmtSetTbName(TAOS_STMT *stmt, const char *tbName);
 int stmtSetTbTags(TAOS_STMT *stmt, TAOS_MULTI_BIND *tags);
+int stmtGetTagFields(TAOS_STMT* stmt, int* nums, TAOS_FIELD_E** fields);
+int stmtGetColFields(TAOS_STMT* stmt, int* nums, TAOS_FIELD_E** fields);
 int stmtIsInsert(TAOS_STMT *stmt, int *insert);
 int stmtGetParamNum(TAOS_STMT *stmt, int *nums);
+int stmtGetParam(TAOS_STMT *stmt, int idx, int *type, int *bytes);
 int stmtAddBatch(TAOS_STMT *stmt);
 TAOS_RES *stmtUseResult(TAOS_STMT *stmt);
 int stmtBindBatch(TAOS_STMT *stmt, TAOS_MULTI_BIND *bind, int32_t colIdx);

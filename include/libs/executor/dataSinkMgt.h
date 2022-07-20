@@ -32,6 +32,27 @@ extern "C" {
 struct SDataSink;
 struct SSDataBlock;
 
+typedef struct SDeleterRes {
+  uint64_t suid;
+  SArray*  uidList;
+  int64_t  skey;
+  int64_t  ekey;
+  int64_t  affectedRows;
+} SDeleterRes;
+
+typedef struct SDeleterParam {
+  uint64_t suid;
+  SArray*  pUidList;
+} SDeleterParam;
+
+typedef struct SInserterParam {
+  SReadHandle* readHandle;
+} SInserterParam;
+
+typedef struct SDataSinkStat {
+  uint64_t cachedSize;
+} SDataSinkStat;
+
 typedef struct SDataSinkMgtCfg {
   uint32_t maxDataBlockNum;           // todo: this should be numOfRows?
   uint32_t maxDataBlockNumPerQuery;
@@ -60,7 +81,9 @@ typedef struct SOutputData {
  * @param pHandle output
  * @return error code
  */
-int32_t dsCreateDataSinker(const SDataSinkNode* pDataSink, DataSinkHandle* pHandle);
+int32_t dsCreateDataSinker(const SDataSinkNode* pDataSink, DataSinkHandle* pHandle, void* pParam);
+
+int32_t dsDataSinkGetCacheSize(SDataSinkStat *pStat);
 
 /**
  * Put the result set returned by the executor into datasinker.
@@ -77,7 +100,7 @@ void dsEndPut(DataSinkHandle handle, uint64_t useconds);
  * @param handle
  * @param pLen data length
  */
-void dsGetDataLength(DataSinkHandle handle, int32_t* pLen, bool* pQueryEnd);
+void dsGetDataLength(DataSinkHandle handle, int64_t* pLen, bool* pQueryEnd);
 
 /**
  * Get data, the caller needs to allocate data memory.
@@ -87,6 +110,8 @@ void dsGetDataLength(DataSinkHandle handle, int32_t* pLen, bool* pQueryEnd);
  * @return error code
  */
 int32_t dsGetDataBlock(DataSinkHandle handle, SOutputData* pOutput);
+
+int32_t dsGetCacheSize(DataSinkHandle handle, uint64_t *pSize);
 
 /**
  * After dsGetStatus returns DS_NEED_SCHEDULE, the caller need to put this into the work queue.

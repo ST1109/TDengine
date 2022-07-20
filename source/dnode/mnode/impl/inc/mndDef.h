@@ -36,6 +36,46 @@ extern "C" {
 #endif
 
 typedef enum {
+  MND_OPER_CONNECT = 1,
+  MND_OPER_CREATE_ACCT,
+  MND_OPER_DROP_ACCT,
+  MND_OPER_ALTER_ACCT,
+  MND_OPER_CREATE_USER,
+  MND_OPER_DROP_USER,
+  MND_OPER_ALTER_USER,
+  MND_OPER_CREATE_BNODE,
+  MND_OPER_DROP_BNODE,
+  MND_OPER_CREATE_DNODE,
+  MND_OPER_DROP_DNODE,
+  MND_OPER_CONFIG_DNODE,
+  MND_OPER_CREATE_MNODE,
+  MND_OPER_DROP_MNODE,
+  MND_OPER_CREATE_QNODE,
+  MND_OPER_DROP_QNODE,
+  MND_OPER_CREATE_SNODE,
+  MND_OPER_DROP_SNODE,
+  MND_OPER_REDISTRIBUTE_VGROUP,
+  MND_OPER_MERGE_VGROUP,
+  MND_OPER_SPLIT_VGROUP,
+  MND_OPER_BALANCE_VGROUP,
+  MND_OPER_CREATE_FUNC,
+  MND_OPER_DROP_FUNC,
+  MND_OPER_KILL_TRANS,
+  MND_OPER_KILL_CONN,
+  MND_OPER_KILL_QUERY,
+  MND_OPER_CREATE_DB,
+  MND_OPER_ALTER_DB,
+  MND_OPER_DROP_DB,
+  MND_OPER_COMPACT_DB,
+  MND_OPER_TRIM_DB,
+  MND_OPER_USE_DB,
+  MND_OPER_WRITE_DB,
+  MND_OPER_READ_DB,
+  MND_OPER_READ_OR_WRITE_DB,
+  MND_OPER_SHOW_VARIBALES,
+} EOperType;
+
+typedef enum {
   MND_AUTH_ACCT_START = 0,
   MND_AUTH_ACCT_USER,
   MND_AUTH_ACCT_DNODE,
@@ -54,75 +94,21 @@ typedef enum {
 } EAuthOp;
 
 typedef enum {
-  TRN_STEP_LOG = 1,
-  TRN_STEP_ACTION = 2,
-} ETrnStep;
+  TRN_CONFLICT_NOTHING = 0,
+  TRN_CONFLICT_GLOBAL = 1,
+  TRN_CONFLICT_DB = 2,
+  TRN_CONFLICT_DB_INSIDE = 3,
+} ETrnConflct;
 
 typedef enum {
   TRN_STAGE_PREPARE = 0,
-  TRN_STAGE_REDO_LOG = 1,
-  TRN_STAGE_REDO_ACTION = 2,
-  TRN_STAGE_ROLLBACK = 3,
-  TRN_STAGE_UNDO_ACTION = 4,
-  TRN_STAGE_UNDO_LOG = 5,
-  TRN_STAGE_COMMIT = 6,
-  TRN_STAGE_COMMIT_LOG = 7,
-  TRN_STAGE_FINISHED = 8
+  TRN_STAGE_REDO_ACTION = 1,
+  TRN_STAGE_ROLLBACK = 2,
+  TRN_STAGE_UNDO_ACTION = 3,
+  TRN_STAGE_COMMIT = 4,
+  TRN_STAGE_COMMIT_ACTION = 5,
+  TRN_STAGE_FINISHED = 6
 } ETrnStage;
-
-typedef enum {
-  TRN_TYPE_BASIC_SCOPE = 1000,
-  TRN_TYPE_CREATE_ACCT = 1001,
-  TRN_TYPE_CREATE_CLUSTER = 1002,
-  TRN_TYPE_CREATE_USER = 1003,
-  TRN_TYPE_ALTER_USER = 1004,
-  TRN_TYPE_DROP_USER = 1005,
-  TRN_TYPE_CREATE_FUNC = 1006,
-  TRN_TYPE_DROP_FUNC = 1007,
-
-  TRN_TYPE_CREATE_SNODE = 1010,
-  TRN_TYPE_DROP_SNODE = 1011,
-  TRN_TYPE_CREATE_QNODE = 1012,
-  TRN_TYPE_DROP_QNODE = 10013,
-  TRN_TYPE_CREATE_BNODE = 1014,
-  TRN_TYPE_DROP_BNODE = 1015,
-  TRN_TYPE_CREATE_MNODE = 1016,
-  TRN_TYPE_DROP_MNODE = 1017,
-
-  TRN_TYPE_CREATE_TOPIC = 1020,
-  TRN_TYPE_DROP_TOPIC = 1021,
-  TRN_TYPE_SUBSCRIBE = 1022,
-  TRN_TYPE_REBALANCE = 1023,
-  TRN_TYPE_COMMIT_OFFSET = 1024,
-  TRN_TYPE_CREATE_STREAM = 1025,
-  TRN_TYPE_DROP_STREAM = 1026,
-  TRN_TYPE_ALTER_STREAM = 1027,
-  TRN_TYPE_CONSUMER_LOST = 1028,
-  TRN_TYPE_CONSUMER_RECOVER = 1029,
-  TRN_TYPE_DROP_CGROUP = 1030,
-  TRN_TYPE_BASIC_SCOPE_END,
-
-  TRN_TYPE_GLOBAL_SCOPE = 2000,
-  TRN_TYPE_CREATE_DNODE = 2001,
-  TRN_TYPE_DROP_DNODE = 2002,
-  TRN_TYPE_GLOBAL_SCOPE_END,
-
-  TRN_TYPE_DB_SCOPE = 3000,
-  TRN_TYPE_CREATE_DB = 3001,
-  TRN_TYPE_ALTER_DB = 3002,
-  TRN_TYPE_DROP_DB = 3003,
-  TRN_TYPE_SPLIT_VGROUP = 3004,
-  TRN_TYPE_MERGE_VGROUP = 3015,
-  TRN_TYPE_DB_SCOPE_END,
-
-  TRN_TYPE_STB_SCOPE = 4000,
-  TRN_TYPE_CREATE_STB = 4001,
-  TRN_TYPE_ALTER_STB = 4002,
-  TRN_TYPE_DROP_STB = 4003,
-  TRN_TYPE_CREATE_SMA = 4004,
-  TRN_TYPE_DROP_SMA = 4005,
-  TRN_TYPE_STB_SCOPE_END,
-} ETrnType;
 
 typedef enum {
   TRN_POLICY_ROLLBACK = 0,
@@ -130,9 +116,9 @@ typedef enum {
 } ETrnPolicy;
 
 typedef enum {
-  TRN_EXEC_PARALLEL = 0,
-  TRN_EXEC_ONE_BY_ONE = 1,
-} ETrnExecType;
+  TRN_EXEC_PRARLLEL = 0,
+  TRN_EXEC_SERIAL = 1,
+} ETrnExec;
 
 typedef enum {
   DND_REASON_ONLINE = 0,
@@ -161,27 +147,30 @@ typedef struct {
   int32_t        id;
   ETrnStage      stage;
   ETrnPolicy     policy;
-  ETrnType       type;
-  ETrnExecType   parallel;
+  ETrnConflct    conflict;
+  ETrnExec       exec;
+  EOperType      oper;
   int32_t        code;
   int32_t        failedTimes;
-  SRpcHandleInfo rpcInfo;
   void*          rpcRsp;
   int32_t        rpcRspLen;
-  SArray*        redoLogs;
-  SArray*        undoLogs;
-  SArray*        commitLogs;
+  int32_t        redoActionPos;
   SArray*        redoActions;
   SArray*        undoActions;
+  SArray*        commitActions;
   int64_t        createdTime;
   int64_t        lastExecTime;
-  int64_t        dbUid;
-  char           dbname[TSDB_DB_FNAME_LEN];
-  char           lastError[TSDB_TRANS_ERROR_LEN];
+  int32_t        lastAction;
+  int32_t        lastErrorNo;
+  tmsg_t         lastMsgType;
+  SEpSet         lastEpset;
+  char           dbname1[TSDB_DB_FNAME_LEN];
+  char           dbname2[TSDB_DB_FNAME_LEN];
   int32_t        startFunc;
   int32_t        stopFunc;
   int32_t        paramLen;
   void*          param;
+  SArray*        pRpcArray;
 } STrans;
 
 typedef struct {
@@ -200,7 +189,10 @@ typedef struct {
   int32_t    accessTimes;
   int32_t    numOfVnodes;
   int32_t    numOfSupportVnodes;
-  int32_t    numOfCores;
+  float      numOfCores;
+  int64_t    memTotal;
+  int64_t    memAvail;
+  int64_t    memUsed;
   EDndReason offlineReason;
   uint16_t   port;
   char       fqdn[TSDB_FQDN_LEN];
@@ -221,6 +213,7 @@ typedef struct {
   int64_t    createdTime;
   int64_t    updateTime;
   SDnodeObj* pDnode;
+  SQnodeLoad load;
 } SQnodeObj;
 
 typedef struct {
@@ -278,6 +271,9 @@ typedef struct {
   int64_t   createdTime;
   int64_t   updateTime;
   int8_t    superUser;
+  int8_t    sysInfo;
+  int8_t    enable;
+  int8_t    reserve;
   int32_t   acctId;
   int32_t   authVersion;
   SHashObj* readDbs;
@@ -291,6 +287,7 @@ typedef struct {
   int32_t buffer;
   int32_t pageSize;
   int32_t pages;
+  int32_t cacheLastSize;
   int32_t daysPerFile;
   int32_t daysToKeep0;
   int32_t daysToKeep1;
@@ -303,10 +300,11 @@ typedef struct {
   int8_t  compression;
   int8_t  replications;
   int8_t  strict;
-  int8_t  cacheLastRow;
   int8_t  hashMethod;  // default is 1
+  int8_t  cacheLast;
   int32_t numOfRetensions;
   SArray* pRetensions;
+  int8_t  schemaless;
 } SDbCfg;
 
 typedef struct {
@@ -345,31 +343,36 @@ typedef struct {
   int8_t    isTsma;
   int8_t    replica;
   SVnodeGid vnodeGid[TSDB_MAX_REPLICA];
+  void*     pTsma;
 } SVgObj;
 
 typedef struct {
-  char    name[TSDB_TABLE_FNAME_LEN];
-  char    stb[TSDB_TABLE_FNAME_LEN];
-  char    db[TSDB_DB_FNAME_LEN];
-  int64_t createdTime;
-  int64_t uid;
-  int64_t stbUid;
-  int64_t dbUid;
-  int8_t  intervalUnit;
-  int8_t  slidingUnit;
-  int8_t  timezone;
-  int32_t dstVgId;  // for stream
-  int64_t interval;
-  int64_t offset;
-  int64_t sliding;
-  int32_t exprLen;  // strlen + 1
-  int32_t tagsFilterLen;
-  int32_t sqlLen;
-  int32_t astLen;
-  char*   expr;
-  char*   tagsFilter;
-  char*   sql;
-  char*   ast;
+  char           name[TSDB_TABLE_FNAME_LEN];
+  char           stb[TSDB_TABLE_FNAME_LEN];
+  char           db[TSDB_DB_FNAME_LEN];
+  char           dstTbName[TSDB_TABLE_FNAME_LEN];
+  int64_t        createdTime;
+  int64_t        uid;
+  int64_t        stbUid;
+  int64_t        dbUid;
+  int64_t        dstTbUid;
+  int8_t         intervalUnit;
+  int8_t         slidingUnit;
+  int8_t         timezone;
+  int32_t        dstVgId;  // for stream
+  int64_t        interval;
+  int64_t        offset;
+  int64_t        sliding;
+  int32_t        exprLen;  // strlen + 1
+  int32_t        tagsFilterLen;
+  int32_t        sqlLen;
+  int32_t        astLen;
+  char*          expr;
+  char*          tagsFilter;
+  char*          sql;
+  char*          ast;
+  SSchemaWrapper schemaRow;  // for dstVgroup
+  SSchemaWrapper schemaTag;  // for dstVgroup
 } SSmaObj;
 
 typedef struct {
@@ -381,15 +384,18 @@ typedef struct {
   int64_t  dbUid;
   int32_t  tagVer;
   int32_t  colVer;
+  int32_t  smaVer;
   int32_t  nextColId;
-  float    xFilesFactor;
-  int32_t  delay;
+  int64_t  maxdelay[2];
+  int64_t  watermark[2];
   int32_t  ttl;
   int32_t  numOfColumns;
   int32_t  numOfTags;
+  int32_t  numOfFuncs;
   int32_t  commentLen;
   int32_t  ast1Len;
   int32_t  ast2Len;
+  SArray*  pFuncs;
   SSchema* pColumns;
   SSchema* pTags;
   char*    comment;
@@ -461,19 +467,16 @@ typedef struct {
   int64_t        uid;
   int64_t        dbUid;
   int32_t        version;
-  int8_t         subType;  // db or table
-  int8_t         withTbName;
-  int8_t         withSchema;
-  int8_t         withTag;
+  int8_t         subType;   // column, db or stable
+  int8_t         withMeta;  // TODO
   SRWLatch       lock;
-  int32_t        consumerCnt;
   int32_t        sqlLen;
   int32_t        astLen;
   char*          sql;
   char*          ast;
   char*          physicalPlan;
   SSchemaWrapper schema;
-  // int32_t        refConsumerCnt;
+  int64_t        stbUid;
 } SMqTopicObj;
 
 typedef struct {
@@ -532,11 +535,11 @@ typedef struct {
   int64_t   dbUid;
   int32_t   vgNum;
   int8_t    subType;
-  int8_t    withTbName;
-  int8_t    withSchema;
-  int8_t    withTag;
+  int8_t    withMeta;
+  int64_t   stbUid;
   SHashObj* consumerHash;   // consumerId -> SMqConsumerEp
   SArray*   unassignedVgs;  // SArray<SMqVgEp*>
+  char      dbName[TSDB_DB_FNAME_LEN];
 } SMqSubscribeObj;
 
 SMqSubscribeObj* tNewSubscribeObj(const char key[TSDB_SUBSCRIBE_KEY_LEN]);
@@ -586,27 +589,37 @@ typedef struct {
 } SMqRebOutputObj;
 
 typedef struct {
-  char           name[TSDB_TOPIC_FNAME_LEN];
-  char           sourceDb[TSDB_DB_FNAME_LEN];
-  char           targetDb[TSDB_DB_FNAME_LEN];
-  char           targetSTbName[TSDB_TABLE_FNAME_LEN];
-  int64_t        targetStbUid;
-  int64_t        createTime;
-  int64_t        updateTime;
-  int64_t        uid;
-  int64_t        dbUid;
-  int32_t        version;
-  int32_t        vgNum;
-  SRWLatch       lock;
-  int8_t         status;
-  int8_t         createdBy;      // STREAM_CREATED_BY__USER or SMA
-  int32_t        fixedSinkVgId;  // 0 for shuffle
-  SVgObj         fixedSinkVg;
-  int64_t        smaId;  // 0 for unused
-  int8_t         trigger;
-  int32_t        triggerParam;
-  int64_t        waterMark;
+  char name[TSDB_STREAM_FNAME_LEN];
+  // ctl
+  SRWLatch lock;
+  // create info
+  int64_t createTime;
+  int64_t updateTime;
+  int32_t version;
+  int64_t smaId;  // 0 for unused
+  // info
+  int64_t uid;
+  int8_t  status;
+  int8_t  isDistributed;
+  // config
+  int8_t  igExpired;
+  int8_t  trigger;
+  int64_t triggerParam;
+  int64_t watermark;
+  // source and target
+  int64_t sourceDbUid;
+  int64_t targetDbUid;
+  char    sourceDb[TSDB_DB_FNAME_LEN];
+  char    targetDb[TSDB_DB_FNAME_LEN];
+  char    targetSTbName[TSDB_TABLE_FNAME_LEN];
+  int64_t targetStbUid;
+  int32_t fixedSinkVgId;  // 0 for shuffle
+  // fixedSinkVg is not applicable for encode and decode
+  SVgObj fixedSinkVg;
+
+  // transformation
   char*          sql;
+  char*          ast;
   char*          physicalPlan;
   SArray*        tasks;  // SArray<SArray<SStreamTask>>
   SSchemaWrapper outputSchema;
@@ -614,6 +627,23 @@ typedef struct {
 
 int32_t tEncodeSStreamObj(SEncoder* pEncoder, const SStreamObj* pObj);
 int32_t tDecodeSStreamObj(SDecoder* pDecoder, SStreamObj* pObj);
+
+typedef struct {
+  char    streamName[TSDB_STREAM_FNAME_LEN];
+  int64_t uid;
+  int64_t streamUid;
+  SArray* childInfo;  // SArray<SStreamChildEpInfo>
+} SStreamCheckpointObj;
+
+#if 0
+typedef struct {
+  int64_t uid;
+  int64_t streamId;
+  int8_t  isDistributed;
+  int8_t  status;
+  int8_t  stage;
+} SStreamRecoverObj;
+#endif
 
 #ifdef __cplusplus
 }

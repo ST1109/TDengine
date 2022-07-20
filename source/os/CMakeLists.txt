@@ -10,7 +10,11 @@ target_include_directories(
     PUBLIC "${TD_SOURCE_DIR}/contrib/msvcregex"
 )
 # iconv
-find_path(IconvApiIncludes iconv.h PATHS)
+if(TD_WINDOWS)
+    find_path(IconvApiIncludes iconv.h "${TD_SOURCE_DIR}/contrib/iconv")
+else()
+    find_path(IconvApiIncludes iconv.h PATHS)
+endif(TD_WINDOWS)
 if(NOT IconvApiIncludes)
     add_definitions(-DDISALLOW_NCHAR_WITHOUT_ICONV) 
 endif ()
@@ -35,12 +39,16 @@ endif()
 target_link_libraries(
     os PUBLIC pthread
 )
-if(NOT TD_WINDOWS)
-    target_link_libraries(
-        os PUBLIC dl m rt
-    )
-else()
+if(TD_WINDOWS)
     target_link_libraries(
         os PUBLIC ws2_32 iconv msvcregex wcwidth winmm
     )
-endif(NOT TD_WINDOWS)
+elseif(TD_DARWIN_64)
+    target_link_libraries(
+        os PUBLIC dl m iconv
+    )
+else()
+    target_link_libraries(
+        os PUBLIC dl m rt
+    )
+endif()

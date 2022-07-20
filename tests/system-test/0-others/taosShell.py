@@ -44,13 +44,13 @@ def taos_command (buildPath, key, value, expectString, cfgDir, sqlString='', key
 
     tdLog.info ("taos cmd: %s" % taosCmd)
 
-    child = taosExpect.spawn(taosCmd, timeout=3)
+    child = taosExpect.spawn(taosCmd, timeout=20)
     #output = child.readline()
     #print (output.decode())
     if len(expectString) != 0:
-        i = child.expect([expectString, taosExpect.TIMEOUT, taosExpect.EOF], timeout=6)
+        i = child.expect([expectString, taosExpect.TIMEOUT, taosExpect.EOF], timeout=20)
     else:
-        i = child.expect([taosExpect.TIMEOUT, taosExpect.EOF], timeout=6)
+        i = child.expect([taosExpect.TIMEOUT, taosExpect.EOF], timeout=20)
 
     if platform.system().lower() == 'windows':
         retResult = child.before
@@ -62,7 +62,7 @@ def taos_command (buildPath, key, value, expectString, cfgDir, sqlString='', key
         print ('taos login success! Here can run sql, taos> ')
         if len(sqlString) != 0:
             child.sendline (sqlString)
-            w = child.expect(["Query OK", taosExpect.TIMEOUT, taosExpect.EOF], timeout=1)
+            w = child.expect(["Query OK", taosExpect.TIMEOUT, taosExpect.EOF], timeout=10)
             if w == 0:
                 return "TAOS_OK"
             else:
@@ -84,6 +84,12 @@ class TDTestCase:
     #updatecfgDict = {'clientCfg': {'serverPort': 7080, 'firstEp': 'trd02:7080', 'secondEp':'trd02:7080'},\
     #                 'serverPort': 7080, 'firstEp': 'trd02:7080'}
     hostname = socket.gethostname()
+    if (platform.system().lower() == 'windows' and not tdDnodes.dnodes[0].remoteIP == ""):
+        try:
+            config = eval(tdDnodes.dnodes[0].remoteIP)
+            hostname = config["host"]
+        except Exception:
+            hostname = tdDnodes.dnodes[0].remoteIP
     serverPort = '7080'
     rpcDebugFlagVal = '143'
     clientCfgDict = {'serverPort': '', 'firstEp': '', 'secondEp':'', 'rpcDebugFlag':'135', 'fqdn':''}

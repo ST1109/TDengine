@@ -22,13 +22,13 @@
 #include "lz4.h"
 #include "os.h"
 #include "taoserror.h"
+#include "tglobal.h"
 #include "thash.h"
-#include "tref.h"
 #include "tmsg.h"
 #include "transLog.h"
+#include "tref.h"
 #include "trpc.h"
 #include "tutil.h"
-#include "tglobal.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -52,12 +52,12 @@ typedef struct {
   char     user[TSDB_UNI_LEN];  // meter ID
 
   void (*cfp)(void* parent, SRpcMsg*, SEpSet*);
-  bool (*retry)(int32_t code);
+  bool (*retry)(int32_t code, tmsg_t msgType);
   int index;
 
-  int32_t       refCount;
   void*         parent;
   void*         tcphandle;  // returned handle from TCP initialization
+  int64_t       refId;
   TdThreadMutex mutex;
 } SRpcInfo;
 

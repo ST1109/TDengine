@@ -69,6 +69,9 @@ int vnodeInit(int nthreads) {
   if (walInit() < 0) {
     return -1;
   }
+  if (tqInit() < 0) {
+    return -1;
+  }
 
   return 0;
 }
@@ -94,6 +97,10 @@ void vnodeCleanup() {
   taosMemoryFreeClear(vnodeGlobal.threads);
   taosThreadCondDestroy(&(vnodeGlobal.hasTask));
   taosThreadMutexDestroy(&(vnodeGlobal.mutex));
+
+  walCleanUp();
+  tqCleanUp();
+  smaCleanUp();
 }
 
 int vnodeScheduleTask(int (*execute)(void*), void* arg) {

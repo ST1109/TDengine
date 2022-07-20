@@ -24,24 +24,28 @@ extern "C" {
 
 typedef int32_t (*FTranslateFunc)(SFunctionNode* pFunc, char* pErrBuf, int32_t len);
 typedef EFuncDataRequired (*FFuncDataRequired)(SFunctionNode* pFunc, STimeWindow* pTimeWindow);
+typedef int32_t (*FCreateMergeFuncParameters)(SNodeList* pRawParameters, SNode* pPartialRes, SNodeList** pParameters);
 
 typedef struct SBuiltinFuncDefinition {
-  char name[FUNCTION_NAME_MAX_LENGTH];
-  EFunctionType type;
-  uint64_t classification;
-  FTranslateFunc translateFunc;
-  FFuncDataRequired dataRequiredFunc;
-  FExecGetEnv getEnvFunc;
-  FExecInit initFunc;
-  FExecProcess processFunc;
-  FScalarExecProcess sprocessFunc;
-  FExecFinalize finalizeFunc;
-  FExecProcess invertFunc;
-  FExecCombine combineFunc;
+  const char*                name;
+  EFunctionType              type;
+  uint64_t                   classification;
+  FTranslateFunc             translateFunc;
+  FFuncDataRequired          dataRequiredFunc;
+  FExecGetEnv                getEnvFunc;
+  FExecInit                  initFunc;
+  FExecProcess               processFunc;
+  FScalarExecProcess         sprocessFunc;
+  FExecFinalize              finalizeFunc;
+  FExecProcess               invertFunc;
+  FExecCombine               combineFunc;
+  const char*                pPartialFunc;
+  const char*                pMergeFunc;
+  FCreateMergeFuncParameters createMergeParaFuc;
 } SBuiltinFuncDefinition;
 
 extern const SBuiltinFuncDefinition funcMgtBuiltins[];
-extern const int funcMgtBuiltinsNum;
+extern const int                    funcMgtBuiltinsNum;
 
 #ifdef __cplusplus
 }

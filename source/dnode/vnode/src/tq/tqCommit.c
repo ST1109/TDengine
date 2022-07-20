@@ -14,3 +14,5 @@
  */
 
 #include "tq.h"
+
+int tqCommit(STQ* pTq) { return tqOffsetSnapshot(pTq->pOffsetStore); }

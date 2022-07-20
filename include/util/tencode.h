@@ -378,14 +378,16 @@ static FORCE_INLINE int32_t tDecodeDouble(SDecoder* pCoder, double* val) {
 }
 
 static FORCE_INLINE int32_t tDecodeBinary(SDecoder* pCoder, uint8_t** val, uint32_t* len) {
-  if (tDecodeU32v(pCoder, len) < 0) return -1;
+  uint32_t length = 0;
+  if (tDecodeU32v(pCoder, &length) < 0) return -1;
+  if (len) *len = length;
 
-  if (TD_CODER_CHECK_CAPACITY_FAILED(pCoder, *len)) return -1;
+  if (TD_CODER_CHECK_CAPACITY_FAILED(pCoder, length)) return -1;
   if (val) {
     *val = (uint8_t*)TD_CODER_CURRENT(pCoder);
   }
 
-  TD_CODER_MOVE_POS(pCoder, *len);
+  TD_CODER_MOVE_POS(pCoder, length);
   return 0;
 }
 
@@ -410,14 +412,16 @@ static int32_t tDecodeCStrTo(SDecoder* pCoder, char* val) {
 }
 
 static FORCE_INLINE int32_t tDecodeBinaryAlloc(SDecoder* pCoder, void** val, uint64_t* len) {
-  if (tDecodeU64v(pCoder, len) < 0) return -1;
+  uint64_t length = 0;
+  if (tDecodeU64v(pCoder, &length) < 0) return -1;
+  if (len) *len = length;
 
-  if (TD_CODER_CHECK_CAPACITY_FAILED(pCoder, *len)) return -1;
-  *val = taosMemoryMalloc(*len);
+  if (TD_CODER_CHECK_CAPACITY_FAILED(pCoder, length)) return -1;
+  *val = taosMemoryMalloc(length);
   if (*val == NULL) return -1;
-  memcpy(*val, TD_CODER_CURRENT(pCoder), *len);
+  memcpy(*val, TD_CODER_CURRENT(pCoder), length);
 
-  TD_CODER_MOVE_POS(pCoder, *len);
+  TD_CODER_MOVE_POS(pCoder, length);
   return 0;
 }
 
@@ -436,7 +440,7 @@ static FORCE_INLINE bool tDecodeIsEnd(SDecoder* pCoder) { return (pCoder->size =
 
 static FORCE_INLINE void* tEncoderMalloc(SEncoder* pCoder, int32_t size) {
   void*      p = NULL;
-  SCoderMem* pMem = (SCoderMem*)taosMemoryMalloc(sizeof(*pMem) + size);
+  SCoderMem* pMem = (SCoderMem*)taosMemoryCalloc(1, sizeof(*pMem) + size);
   if (pMem) {
     pMem->next = pCoder->mList;
     pCoder->mList = pMem;
@@ -447,7 +451,7 @@ static FORCE_INLINE void* tEncoderMalloc(SEncoder* pCoder, int32_t size) {
 
 static FORCE_INLINE void* tDecoderMalloc(SDecoder* pCoder, int32_t size) {
   void*      p = NULL;
-  SCoderMem* pMem = (SCoderMem*)taosMemoryMalloc(sizeof(*pMem) + size);
+  SCoderMem* pMem = (SCoderMem*)taosMemoryCalloc(1, sizeof(*pMem) + size);
   if (pMem) {
     pMem->next = pCoder->mList;
     pCoder->mList = pMem;
@@ -471,22 +475,6 @@ static FORCE_INLINE void* tDecoderMalloc(SDecoder* pCoder, int32_t size) {
       v >>= 7;                         \
     }                                  \
     return n;                          \
-  } while (0)
-
-#define tGetV(p, v)                              \
-  do {                                           \
-    int32_t n = 0;                               \
-    if (v) *v = 0;                               \
-    for (;;) {                                   \
-      if (p[n] <= 0x7f) {                        \
-        if (v) (*v) |= (p[n] << (7 * n));        \
-        n++;                                     \
-        break;                                   \
-      }                                          \
-      if (v) (*v) |= ((p[n] & 0x7f) << (7 * n)); \
-      n++;                                       \
-    }                                            \
-    return n;                                    \
   } while (0)
 
 // PUT
@@ -528,6 +516,26 @@ static FORCE_INLINE int32_t tPutU64(uint8_t* p, uint64_t v) {
 static FORCE_INLINE int32_t tPutI64(uint8_t* p, int64_t v) {
   if (p) ((int64_t*)p)[0] = v;
   return sizeof(int64_t);
+}
+
+static FORCE_INLINE int32_t tPutFloat(uint8_t* p, float f) {
+  union {
+    uint32_t ui;
+    float    f;
+  } v;
+  v.f = f;
+
+  return tPutU32(p, v.ui);
+}
+
+static FORCE_INLINE int32_t tPutDouble(uint8_t* p, double d) {
+  union {
+    uint64_t ui;
+    double   d;
+  } v;
+  v.d = d;
+
+  return tPutU64(p, v.ui);
 }
 
 static FORCE_INLINE int32_t tPutU16v(uint8_t* p, uint16_t v) { tPutV(p, v); }
@@ -583,7 +591,22 @@ static FORCE_INLINE int32_t tGetI64(uint8_t* p, int64_t* v) {
   return sizeof(int64_t);
 }
 
-static FORCE_INLINE int32_t tGetU16v(uint8_t* p, uint16_t* v) { tGetV(p, v); }
+static FORCE_INLINE int32_t tGetU16v(uint8_t* p, uint16_t* v) {
+  int32_t n = 0;
+
+  if (v) *v = 0;
+  for (;;) {
+    if (p[n] <= 0x7f) {
+      if (v) (*v) |= (((uint16_t)p[n]) << (7 * n));
+      n++;
+      break;
+    }
+    if (v) (*v) |= (((uint16_t)(p[n] & 0x7f)) << (7 * n));
+    n++;
+  }
+
+  return n;
+}
 
 static FORCE_INLINE int32_t tGetI16v(uint8_t* p, int16_t* v) {
   int32_t  n;
@@ -595,7 +618,22 @@ static FORCE_INLINE int32_t tGetI16v(uint8_t* p, int16_t* v) {
   return n;
 }
 
-static FORCE_INLINE int32_t tGetU32v(uint8_t* p, uint32_t* v) { tGetV(p, v); }
+static FORCE_INLINE int32_t tGetU32v(uint8_t* p, uint32_t* v) {
+  int32_t n = 0;
+
+  if (v) *v = 0;
+  for (;;) {
+    if (p[n] <= 0x7f) {
+      if (v) (*v) |= (((uint32_t)p[n]) << (7 * n));
+      n++;
+      break;
+    }
+    if (v) (*v) |= (((uint32_t)(p[n] & 0x7f)) << (7 * n));
+    n++;
+  }
+
+  return n;
+}
 
 static FORCE_INLINE int32_t tGetI32v(uint8_t* p, int32_t* v) {
   int32_t  n;
@@ -607,7 +645,22 @@ static FORCE_INLINE int32_t tGetI32v(uint8_t* p, int32_t* v) {
   return n;
 }
 
-static FORCE_INLINE int32_t tGetU64v(uint8_t* p, uint64_t* v) { tGetV(p, v); }
+static FORCE_INLINE int32_t tGetU64v(uint8_t* p, uint64_t* v) {
+  int32_t n = 0;
+
+  if (v) *v = 0;
+  for (;;) {
+    if (p[n] <= 0x7f) {
+      if (v) (*v) |= (((uint64_t)p[n]) << (7 * n));
+      n++;
+      break;
+    }
+    if (v) (*v) |= (((uint64_t)(p[n] & 0x7f)) << (7 * n));
+    n++;
+  }
+
+  return n;
+}
 
 static FORCE_INLINE int32_t tGetI64v(uint8_t* p, int64_t* v) {
   int32_t  n;
@@ -616,6 +669,34 @@ static FORCE_INLINE int32_t tGetI64v(uint8_t* p, int64_t* v) {
   n = tGetU64v(p, &tv);
   if (v) *v = ZIGZAGD(int64_t, tv);
 
+  return n;
+}
+
+static FORCE_INLINE int32_t tGetFloat(uint8_t* p, float* f) {
+  int32_t n = 0;
+
+  union {
+    uint32_t ui;
+    float    f;
+  } v;
+
+  n = tGetU32(p, &v.ui);
+
+  *f = v.f;
+  return n;
+}
+
+static FORCE_INLINE int32_t tGetDouble(uint8_t* p, double* d) {
+  int32_t n = 0;
+
+  union {
+    uint64_t ui;
+    double   d;
+  } v;
+
+  n = tGetU64(p, &v.ui);
+
+  *d = v.d;
   return n;
 }
 
@@ -641,6 +722,11 @@ static FORCE_INLINE int32_t tGetBinary(uint8_t* p, uint8_t** ppData, uint32_t* n
 
   return n;
 }
+
+static FORCE_INLINE int32_t tPutCStr(uint8_t* p, char* pData) {
+  return tPutBinary(p, (uint8_t*)pData, strlen(pData) + 1);
+}
+static FORCE_INLINE int32_t tGetCStr(uint8_t* p, char** ppData) { return tGetBinary(p, (uint8_t**)ppData, NULL); }
 
 #ifdef __cplusplus
 }

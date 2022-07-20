@@ -12,6 +12,7 @@ target_link_libraries(
     PUBLIC os
     PUBLIC util
     PUBLIC common
+    PUBLIC vnode
     PUBLIC nodes
     PUBLIC scalar 
     PUBLIC function 
@@ -35,6 +36,6 @@ endif(${BUILD_WITH_INVERTEDINDEX})
 
 
 if (${BUILD_TEST})
-  add_subdirectory(test)
+   add_subdirectory(test)
 endif(${BUILD_TEST})
 

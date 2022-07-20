@@ -45,6 +45,8 @@ extern bool    tsEnableSlaveQuery;
 extern bool    tsPrintAuth;
 extern int64_t tsTickPerMin[3];
 
+extern int32_t tsCountAlwaysReturnValue;
+
 // multi-process
 extern int32_t tsMultiProcess;
 extern int32_t tsMnodeShmSize;
@@ -59,12 +61,13 @@ extern int32_t tsNumOfRpcThreads;
 extern int32_t tsNumOfCommitThreads;
 extern int32_t tsNumOfTaskQueueThreads;
 extern int32_t tsNumOfMnodeQueryThreads;
+extern int32_t tsNumOfMnodeFetchThreads;
 extern int32_t tsNumOfMnodeReadThreads;
 extern int32_t tsNumOfVnodeQueryThreads;
+extern int32_t tsNumOfVnodeStreamThreads;
 extern int32_t tsNumOfVnodeFetchThreads;
 extern int32_t tsNumOfVnodeWriteThreads;
 extern int32_t tsNumOfVnodeSyncThreads;
-extern int32_t tsNumOfVnodeMergeThreads;
 extern int32_t tsNumOfQnodeQueryThreads;
 extern int32_t tsNumOfQnodeFetchThreads;
 extern int32_t tsNumOfSnodeSharedThreads;
@@ -94,6 +97,7 @@ extern bool    tsDeadLockKillQuery;
 
 // query client
 extern int32_t tsQueryPolicy;
+extern int32_t tsQuerySmaOptimize;
 
 // client
 extern int32_t tsMinSlidingTime;
@@ -102,7 +106,6 @@ extern int32_t tsMaxStreamComputDelay;
 extern int32_t tsStreamCompStartDelay;
 extern int32_t tsRetryStreamCompDelay;
 extern float   tsStreamComputDelayRatio;  // the delayed computing ration of the whole time window
-extern int32_t tsProjectExecInterval;
 extern int64_t tsMaxRetentWindow;
 
 // build info
@@ -134,6 +137,9 @@ extern bool tsSmlDataFormat;
 // internal
 extern int32_t tsTransPullupInterval;
 extern int32_t tsMqRebalanceInterval;
+extern int32_t tsTtlUnit;
+extern int32_t tsTtlPushInterval;
+extern int32_t tsGrantHBInterval;
 
 #define NEEDTO_COMPRESSS_MSG(size) (tsCompressMsgSize != -1 && (size) > tsCompressMsgSize)
 
@@ -146,6 +152,7 @@ void    taosCfgDynamicOptions(const char *option, const char *value);
 void    taosAddDataDir(int32_t index, char *v1, int32_t level, int32_t primary);
 
 struct SConfig *taosGetCfg();
+int32_t taosSetCfg(SConfig *pCfg, char* name);
 
 #ifdef __cplusplus
 }
