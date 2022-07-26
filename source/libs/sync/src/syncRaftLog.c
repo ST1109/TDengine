@@ -578,6 +578,8 @@ SyncTerm logStoreLastTerm(SSyncLogStore* pLogStore) {
 }
 
 int32_t logStoreUpdateCommitIndex(SSyncLogStore* pLogStore, SyncIndex index) {
+#if 0
+
   SSyncLogStoreData* pData = pLogStore->data;
   SWal*              pWal = pData->pWal;
   // ASSERT(walCommit(pWal, index) == 0);
@@ -592,6 +594,8 @@ int32_t logStoreUpdateCommitIndex(SSyncLogStore* pLogStore, SyncIndex index) {
 
     ASSERT(0);
   }
+#endif
+
   return 0;
 }
 
