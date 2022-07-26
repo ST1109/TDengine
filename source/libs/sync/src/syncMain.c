@@ -2501,10 +2501,10 @@ int32_t syncNodeOnClientRequestCb(SSyncNode* ths, SyncClientRequest* pMsg, SyncI
     // if mulit replica, start replicate right now
     if (ths->replicaNum > 1) {
       syncNodeReplicate(ths);
-    }
 
-    // pre commit
-    syncNodePreCommit(ths, pEntry, 0);
+      // pre commit
+      syncNodePreCommit(ths, pEntry, 0);
+    }
 
     // if only myself, maybe commit right now
     if (ths->replicaNum == 1) {
