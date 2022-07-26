@@ -2510,10 +2510,6 @@ int32_t syncNodeOnClientRequestCb(SSyncNode* ths, SyncClientRequest* pMsg, SyncI
     if (ths->replicaNum == 1) {
       syncMaybeAdvanceCommitIndex(ths);
     }
-
-  } else {
-    // pre commit
-    syncNodePreCommit(ths, pEntry, 0);
   }
 
   if (pRetIndex != NULL) {
