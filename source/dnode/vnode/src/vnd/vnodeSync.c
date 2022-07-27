@@ -536,12 +536,24 @@ static void vnodeSyncCommitMsg(SSyncFSM *pFsm, const SRpcMsg *pMsg, SFsmCbMeta c
 static void vnodeSyncPreCommitMsg(SSyncFSM *pFsm, const SRpcMsg *pMsg, SFsmCbMeta cbMeta) {
   SVnode *pVnode = pFsm->data;
 
+  static SyncIndex preCommitIndex = 0;
+
   if (cbMeta.isWeak == 1) {
     if (cbMeta.code == 0) {
+      if (cbMeta.index > preCommitIndex) {
+        preCommitIndex = cbMeta.index;
+      } else {
+        vTrace("vgId:%d, pre-commit-cb do not excuted, fsm:%p, index:%" PRId64
+               ", isWeak:%d, code:%d, state:%d %s, msgtype:%d %s, already_exe:%ld",
+               syncGetVgId(pVnode->sync), pFsm, cbMeta.index, cbMeta.isWeak, cbMeta.code, cbMeta.state,
+               syncUtilState2String(cbMeta.state), pMsg->msgType, TMSG_INFO(pMsg->msgType), preCommitIndex);
+        return;
+      }
+
       vTrace("vgId:%d, pre-commit-cb is excuted, fsm:%p, index:%" PRId64
-             ", isWeak:%d, code:%d, state:%d %s, msgtype:%d %s",
+             ", isWeak:%d, code:%d, state:%d %s, msgtype:%d %s, already_exe:%ld",
              syncGetVgId(pVnode->sync), pFsm, cbMeta.index, cbMeta.isWeak, cbMeta.code, cbMeta.state,
-             syncUtilState2String(cbMeta.state), pMsg->msgType, TMSG_INFO(pMsg->msgType));
+             syncUtilState2String(cbMeta.state), pMsg->msgType, TMSG_INFO(pMsg->msgType), preCommitIndex);
 
       SRpcMsg rpcMsg = {.msgType = pMsg->msgType, .contLen = pMsg->contLen};
       rpcMsg.pCont = rpcMallocCont(rpcMsg.contLen);
