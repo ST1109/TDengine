@@ -46,7 +46,7 @@ extern "C" {
 
 #define ERROR_MSG_BUF_DEFAULT_SIZE 512
 #define HEARTBEAT_INTERVAL         1500  // ms
-#define SYNC_ON_TOP_OF_ASYNC       0
+#define SYNC_ON_TOP_OF_ASYNC       1
 
 enum {
   RES_TYPE__QUERY = 1,
@@ -222,6 +222,7 @@ typedef struct SRequestObj {
   int32_t              code;
   SArray*              dbList;
   SArray*              tableList;
+  SArray*              targetTableList;
   SQueryExecMetric     metric;
   SRequestSendRecvBody body;
   bool                 syncQuery;     // todo refactor: async query object

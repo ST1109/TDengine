@@ -120,8 +120,9 @@ int transInitBuffer(SConnBuffer* buf) {
   buf->total = 0;
   return 0;
 }
-int transDestroyBuffer(SConnBuffer* buf) {
-  taosMemoryFree(buf->buf);
+int transDestroyBuffer(SConnBuffer* p) {
+  taosMemoryFree(p->buf);
+  p->buf = NULL;
   return 0;
 }
 
@@ -152,16 +153,18 @@ int transDumpFromBuffer(SConnBuffer* connBuf, char** buf) {
 
 int transResetBuffer(SConnBuffer* connBuf) {
   SConnBuffer* p = connBuf;
-  if (p->total <= p->len) {
+  if (p->total < p->len) {
     int left = p->len - p->total;
     memmove(p->buf, p->buf + p->total, left);
     p->left = -1;
     p->total = 0;
     p->len = left;
-  } else {
+  } else if (p->total == p->len) {
     p->left = -1;
     p->total = 0;
     p->len = 0;
+  } else {
+    assert(0);
   }
   return 0;
 }
