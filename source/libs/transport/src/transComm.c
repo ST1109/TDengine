@@ -254,9 +254,6 @@ bool transAsyncPoolIsEmpty(SAsyncPool* pool) {
   return true;
 }
 int transAsyncSend(SAsyncPool* pool, queue* q) {
-  if (atomic_load_8(&pool->stop) == 1) {
-    return -1;
-  }
   int idx = pool->index;
   idx = idx % pool->nAsync;
   // no need mutex here
@@ -266,11 +263,9 @@ int transAsyncSend(SAsyncPool* pool, queue* q) {
   uv_async_t* async = &(pool->asyncs[idx]);
   SAsyncItem* item = async->data;
 
-  int64_t st = taosGetTimestampUs();
   taosThreadMutexLock(&item->mtx);
   QUEUE_PUSH(&item->qmsg, q);
   taosThreadMutexUnlock(&item->mtx);
-  int64_t el = taosGetTimestampUs() - st;
   if (el > 50) {
     // tInfo("lock and unlock cost:%d", (int)el);
   }
