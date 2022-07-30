@@ -515,10 +515,10 @@ void tRowIterInit(SRowIter *pIter, TSDBROW *pRow, STSchema *pTSchema) {
   pIter->pRow = pRow;
   if (pRow->type == 0) {
     ASSERT(pTSchema);
-    pIter->pTSchema = pTSchema;
-    pIter->i = 1;
+    tdSTSRowIterInit(&pIter->iter, pTSchema);
+    tdSTSRowIterReset(&pIter->iter, pRow->pTSRow);
+    pIter->i = 0;
   } else if (pRow->type == 1) {
-    pIter->pTSchema = NULL;
     pIter->i = 0;
   } else {
     ASSERT(0);
@@ -527,12 +527,34 @@ void tRowIterInit(SRowIter *pIter, TSDBROW *pRow, STSchema *pTSchema) {
 
 SColVal *tRowIterNext(SRowIter *pIter) {
   if (pIter->pRow->type == 0) {
-    if (pIter->i < pIter->pTSchema->numOfCols) {
-      tsdbRowGetColVal(pIter->pRow, pIter->pTSchema, pIter->i, &pIter->colVal);
-      pIter->i++;
+    STColumn *pTColumn = &pIter->iter.pSchema->columns[pIter->i];
+    SCellVal  cv;
 
-      return &pIter->colVal;
+    if (pIter->i >= pIter->iter.pSchema->numOfCols) goto _exit;
+
+    tdSTSRowIterNext(&pIter->iter, pTColumn->colId, pTColumn->type, &cv);
+
+    if (tdValTypeIsNone(cv.valType)) {
+      pIter->colVal = COL_VAL_NONE(pTColumn->colId, pTColumn->type);
+    } else if (tdValTypeIsNull(cv.valType)) {
+      pIter->colVal = COL_VAL_NULL(pTColumn->colId, pTColumn->type);
+    } else {
+      pIter->colVal.cid = pTColumn->colId;
+      pIter->colVal.type = pTColumn->type;
+      pIter->colVal.isNone = 0;
+      pIter->colVal.isNull = 0;
+
+      if (IS_VAR_DATA_TYPE(pTColumn->type)) {
+        pIter->colVal.value.nData = varDataLen(cv.val);
+        pIter->colVal.value.pData = varDataVal(cv.val);
+      } else {
+        tGetValue(cv.val, &pIter->colVal.value, pTColumn->type);
+      }
     }
+
+    pIter->i++;
+
+    return &pIter->colVal;
   } else {
     if (pIter->i < taosArrayGetSize(pIter->pRow->pBlockData->aIdx)) {
       SColData *pColData = tBlockDataGetColDataByIdx(pIter->pRow->pBlockData, pIter->i);
@@ -544,6 +566,7 @@ SColVal *tRowIterNext(SRowIter *pIter) {
     }
   }
 
+_exit:
   return NULL;
 }
 

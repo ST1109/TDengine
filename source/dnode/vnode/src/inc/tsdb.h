@@ -519,10 +519,10 @@ struct SDFileSet {
 };
 
 struct SRowIter {
-  TSDBROW  *pRow;
-  STSchema *pTSchema;
-  SColVal   colVal;
-  int32_t   i;
+  TSDBROW   *pRow;
+  STSRowIter iter;
+  int32_t    i;
+  SColVal    colVal;
 };
 struct SRowMerger {
   STSchema *pTSchema;

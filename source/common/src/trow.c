@@ -625,7 +625,7 @@ int32_t tdSTSRowNew(SArray *pArray, STSchema *pTSchema, STSRow **ppRow) {
   if (maxVarDataLen > 0) {
     varBuf = taosMemoryMalloc(maxVarDataLen);
     if (!varBuf) {
-      if(isAlloc) {
+      if (isAlloc) {
         taosMemoryFreeClear(*ppRow);
       }
       terrno = TSDB_CODE_OUT_OF_MEMORY;
