@@ -96,6 +96,7 @@ typedef struct SScanLogicNode {
   bool          groupSort;
   int8_t        cacheLastMode;
   bool          hasNormalCols;  // neither tag column nor primary key tag column
+  bool          sortPrimaryKey;
 } SScanLogicNode;
 
 typedef struct SJoinLogicNode {
@@ -151,7 +152,8 @@ typedef struct SVnodeModifyLogicNode {
   uint64_t         tableId;
   uint64_t         stableId;
   int8_t           tableType;  // table type
-  char             tableFName[TSDB_TABLE_FNAME_LEN];
+  char             tableName[TSDB_TABLE_NAME_LEN];
+  char             tsColName[TSDB_COL_NAME_LEN];
   STimeWindow      deleteTimeRange;
   SVgroupsInfo*    pVgroupList;
   SNodeList*       pInsertCols;
@@ -203,6 +205,7 @@ typedef struct SWindowLogicNode {
   int8_t           igExpired;
   EWindowAlgorithm windowAlgo;
   EOrder           inputTsOrder;
+  EOrder           outputTsOrder;
 } SWindowLogicNode;
 
 typedef struct SFillLogicNode {
@@ -211,6 +214,7 @@ typedef struct SFillLogicNode {
   SNode*      pWStartTs;
   SNode*      pValues;  // SNodeListNode
   STimeWindow timeRange;
+  EOrder      inputTsOrder;
 } SFillLogicNode;
 
 typedef struct SSortLogicNode {
@@ -328,6 +332,7 @@ typedef struct STableScanPhysiNode {
   int8_t         triggerType;
   int64_t        watermark;
   int8_t         igExpired;
+  bool           assignBlockUid;
 } STableScanPhysiNode;
 
 typedef STableScanPhysiNode STableSeqScanPhysiNode;
@@ -408,6 +413,8 @@ typedef struct SWinodwPhysiNode {
   int8_t     triggerType;
   int64_t    watermark;
   int8_t     igExpired;
+  EOrder     inputTsOrder;
+  EOrder     outputTsOrder;
 } SWinodwPhysiNode;
 
 typedef struct SIntervalPhysiNode {
@@ -432,6 +439,7 @@ typedef struct SFillPhysiNode {
   SNode*      pValues;    // SNodeListNode
   SNodeList*  pTargets;
   STimeWindow timeRange;
+  EOrder      inputTsOrder;
 } SFillPhysiNode;
 
 typedef struct SMultiTableIntervalPhysiNode {
@@ -493,7 +501,7 @@ typedef struct SQueryInserterNode {
   uint64_t      tableId;
   uint64_t      stableId;
   int8_t        tableType;  // table type
-  char          tableFName[TSDB_TABLE_FNAME_LEN];
+  char          tableName[TSDB_TABLE_NAME_LEN];
   int32_t       vgId;
   SEpSet        epSet;
 } SQueryInserterNode;
@@ -502,7 +510,8 @@ typedef struct SDataDeleterNode {
   SDataSinkNode sink;
   uint64_t      tableId;
   int8_t        tableType;  // table type
-  char          tableFName[TSDB_TABLE_FNAME_LEN];
+  char          tableFName[TSDB_TABLE_NAME_LEN];
+  char          tsColName[TSDB_COL_NAME_LEN];
   STimeWindow   deleteTimeRange;
   SNode*        pAffectedRows;
 } SDataDeleterNode;

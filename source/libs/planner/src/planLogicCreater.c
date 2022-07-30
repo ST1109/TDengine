@@ -632,6 +632,7 @@ static int32_t createWindowLogicNodeFinalize(SLogicPlanContext* pCxt, SSelectStm
     pWindow->igExpired = pCxt->pPlanCxt->igExpired;
   }
   pWindow->inputTsOrder = ORDER_ASC;
+  pWindow->outputTsOrder = ORDER_ASC;
 
   int32_t code = nodesCollectFuncs(pSelect, SQL_CLAUSE_WINDOW, fmIsWindowClauseFunc, &pWindow->pFuncs);
   if (TSDB_CODE_SUCCESS == code) {
@@ -764,6 +765,7 @@ static int32_t createFillLogicNode(SLogicPlanContext* pCxt, SSelectStmt* pSelect
   pFill->node.groupAction = GROUP_ACTION_KEEP;
   pFill->node.requireDataOrder = DATA_ORDER_LEVEL_IN_GROUP;
   pFill->node.resultDataOrder = DATA_ORDER_LEVEL_IN_GROUP;
+  pFill->inputTsOrder = ORDER_ASC;
 
   int32_t code = nodesCollectColumns(pSelect, SQL_CLAUSE_WINDOW, NULL, COLLECT_COL_TYPE_ALL, &pFill->node.pTargets);
   if (TSDB_CODE_SUCCESS == code && NULL == pFill->node.pTargets) {
@@ -1229,6 +1231,7 @@ static int32_t createDeleteScanLogicNode(SLogicPlanContext* pCxt, SDeleteStmt* p
   // set columns to scan
   if (TSDB_CODE_SUCCESS == code) {
     pScan->scanType = SCAN_TYPE_TABLE;
+    pScan->scanRange = pDelete->timeRange;
     pScan->pScanCols = nodesCloneList(((SFunctionNode*)pDelete->pCountFunc)->pParameterList);
     if (NULL == pScan->pScanCols) {
       code = TSDB_CODE_OUT_OF_MEMORY;
@@ -1292,8 +1295,8 @@ static int32_t createVnodeModifLogicNodeByDelete(SLogicPlanContext* pCxt, SDelet
   pModify->modifyType = MODIFY_TABLE_TYPE_DELETE;
   pModify->tableId = pRealTable->pMeta->uid;
   pModify->tableType = pRealTable->pMeta->tableType;
-  snprintf(pModify->tableFName, sizeof(pModify->tableFName), "%d.%s.%s", pCxt->pPlanCxt->acctId,
-           pRealTable->table.dbName, pRealTable->table.tableName);
+  snprintf(pModify->tableName, sizeof(pModify->tableName), "%s", pRealTable->table.tableName);
+  strcpy(pModify->tsColName, pRealTable->pMeta->schema->name);
   pModify->deleteTimeRange = pDelete->timeRange;
   pModify->pAffectedRows = nodesCloneNode(pDelete->pCountFunc);
   if (NULL == pModify->pAffectedRows) {
@@ -1342,8 +1345,7 @@ static int32_t createVnodeModifLogicNodeByInsert(SLogicPlanContext* pCxt, SInser
   pModify->tableId = pRealTable->pMeta->uid;
   pModify->stableId = pRealTable->pMeta->suid;
   pModify->tableType = pRealTable->pMeta->tableType;
-  snprintf(pModify->tableFName, sizeof(pModify->tableFName), "%d.%s.%s", pCxt->pPlanCxt->acctId,
-           pRealTable->table.dbName, pRealTable->table.tableName);
+  snprintf(pModify->tableName, sizeof(pModify->tableName), "%s", pRealTable->table.tableName);
   TSWAP(pModify->pVgroupList, pRealTable->pVgroupList);
   pModify->pInsertCols = nodesCloneList(pInsert->pCols);
   if (NULL == pModify->pInsertCols) {

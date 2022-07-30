@@ -151,26 +151,6 @@ int32_t tTABLEIDCmprFn(const void *p1, const void *p2) {
   return 0;
 }
 
-// TSDBKEY =======================================================================
-int32_t tsdbKeyCmprFn(const void *p1, const void *p2) {
-  TSDBKEY *pKey1 = (TSDBKEY *)p1;
-  TSDBKEY *pKey2 = (TSDBKEY *)p2;
-
-  if (pKey1->ts < pKey2->ts) {
-    return -1;
-  } else if (pKey1->ts > pKey2->ts) {
-    return 1;
-  }
-
-  if (pKey1->version < pKey2->version) {
-    return -1;
-  } else if (pKey1->version > pKey2->version) {
-    return 1;
-  }
-
-  return 0;
-}
-
 // TSDBKEY ======================================================
 static FORCE_INLINE int32_t tPutTSDBKEY(uint8_t *p, TSDBKEY *pKey) {
   int32_t n = 0;
@@ -1022,6 +1002,10 @@ void tBlockDataClear(SBlockData *pBlockData, int8_t deepClear) {
   tFree((uint8_t *)pBlockData->aTSKEY);
   taosArrayDestroy(pBlockData->aIdx);
   taosArrayDestroyEx(pBlockData->aColData, deepClear ? tColDataClear : NULL);
+  pBlockData->aColData = NULL;
+  pBlockData->aIdx = NULL;
+  pBlockData->aTSKEY = NULL;
+  pBlockData->aVersion = NULL;
 }
 
 int32_t tBlockDataSetSchema(SBlockData *pBlockData, STSchema *pTSchema) {
@@ -1397,7 +1381,7 @@ void tsdbCalcColDataSMA(SColData *pColData, SColumnDataAgg *pColAgg) {
           break;
         case TSDB_DATA_TYPE_BOOL:
           break;
-        case TSDB_DATA_TYPE_TINYINT:{
+        case TSDB_DATA_TYPE_TINYINT: {
           pColAgg->sum += colVal.value.i8;
           if (pColAgg->min > colVal.value.i8) {
             pColAgg->min = colVal.value.i8;
@@ -1407,7 +1391,7 @@ void tsdbCalcColDataSMA(SColData *pColData, SColumnDataAgg *pColAgg) {
           }
           break;
         }
-        case TSDB_DATA_TYPE_SMALLINT:{
+        case TSDB_DATA_TYPE_SMALLINT: {
           pColAgg->sum += colVal.value.i16;
           if (pColAgg->min > colVal.value.i16) {
             pColAgg->min = colVal.value.i16;
@@ -1437,7 +1421,7 @@ void tsdbCalcColDataSMA(SColData *pColData, SColumnDataAgg *pColAgg) {
           }
           break;
         }
-        case TSDB_DATA_TYPE_FLOAT:{
+        case TSDB_DATA_TYPE_FLOAT: {
           pColAgg->sum += colVal.value.f;
           if (pColAgg->min > colVal.value.f) {
             pColAgg->min = colVal.value.f;
@@ -1447,7 +1431,7 @@ void tsdbCalcColDataSMA(SColData *pColData, SColumnDataAgg *pColAgg) {
           }
           break;
         }
-        case TSDB_DATA_TYPE_DOUBLE:{
+        case TSDB_DATA_TYPE_DOUBLE: {
           pColAgg->sum += colVal.value.d;
           if (pColAgg->min > colVal.value.d) {
             pColAgg->min = colVal.value.d;
@@ -1459,7 +1443,7 @@ void tsdbCalcColDataSMA(SColData *pColData, SColumnDataAgg *pColAgg) {
         }
         case TSDB_DATA_TYPE_VARCHAR:
           break;
-        case TSDB_DATA_TYPE_TIMESTAMP:{
+        case TSDB_DATA_TYPE_TIMESTAMP: {
           if (pColAgg->min > colVal.value.i64) {
             pColAgg->min = colVal.value.i64;
           }
@@ -1470,7 +1454,7 @@ void tsdbCalcColDataSMA(SColData *pColData, SColumnDataAgg *pColAgg) {
         }
         case TSDB_DATA_TYPE_NCHAR:
           break;
-        case TSDB_DATA_TYPE_UTINYINT:{
+        case TSDB_DATA_TYPE_UTINYINT: {
           pColAgg->sum += colVal.value.u8;
           if (pColAgg->min > colVal.value.u8) {
             pColAgg->min = colVal.value.u8;
@@ -1480,7 +1464,7 @@ void tsdbCalcColDataSMA(SColData *pColData, SColumnDataAgg *pColAgg) {
           }
           break;
         }
-        case TSDB_DATA_TYPE_USMALLINT:{
+        case TSDB_DATA_TYPE_USMALLINT: {
           pColAgg->sum += colVal.value.u16;
           if (pColAgg->min > colVal.value.u16) {
             pColAgg->min = colVal.value.u16;
@@ -1490,7 +1474,7 @@ void tsdbCalcColDataSMA(SColData *pColData, SColumnDataAgg *pColAgg) {
           }
           break;
         }
-        case TSDB_DATA_TYPE_UINT:{
+        case TSDB_DATA_TYPE_UINT: {
           pColAgg->sum += colVal.value.u32;
           if (pColAgg->min > colVal.value.u32) {
             pColAgg->min = colVal.value.u32;
@@ -1500,7 +1484,7 @@ void tsdbCalcColDataSMA(SColData *pColData, SColumnDataAgg *pColAgg) {
           }
           break;
         }
-        case TSDB_DATA_TYPE_UBIGINT:{
+        case TSDB_DATA_TYPE_UBIGINT: {
           pColAgg->sum += colVal.value.u64;
           if (pColAgg->min > colVal.value.u64) {
             pColAgg->min = colVal.value.u64;
