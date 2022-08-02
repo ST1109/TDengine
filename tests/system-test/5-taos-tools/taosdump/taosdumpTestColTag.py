@@ -166,7 +166,7 @@ class TDTestCase:
         tdSql.query("describe db.`%s` ; " % self.stb1)
         tdSql.checkRows(22)
 
-        tdSql.query("select _block_dist() from db.`%s` ; " % self.stb1)
+        tdSql.query("select count(*) from db.`%s` ; " % self.stb1)
         tdSql.checkRows(0)
 
         tdSql.query("show create stable db.`%s` ; " % self.stb1)
@@ -212,7 +212,7 @@ class TDTestCase:
 
         tdSql.query("select count(*) from  db.`table!1`; ")
         tdSql.checkData(0, 0, 2)
-        tdSql.query("select _block_dist() from db.`%s` ; " % self.stb1)
+        tdSql.query("select count(*) from db.`%s` ; " % self.stb1)
         tdSql.checkRows(1)
 
         tdSql.execute(
@@ -718,7 +718,7 @@ class TDTestCase:
         tdSql.query("describe `%s` ; " % self.stb2)
         tdSql.checkRows(3)
 
-        tdSql.query("select _block_dist() from `%s` ; " % self.stb2)
+        tdSql.query("select count(*) from `%s` ; " % self.stb2)
         tdSql.checkRows(0)
 
         tdSql.query("show create stable `%s` ; " % self.stb2)
@@ -747,7 +747,7 @@ class TDTestCase:
         tdSql.checkRows(1)
         tdSql.query("select count(*) from  `table!2`; ")
         tdSql.checkData(0, 0, 1)
-        tdSql.query("select _block_dist() from `%s` ; " % self.stb2)
+        tdSql.query("select count(*) from `%s` ; " % self.stb2)
         tdSql.checkRows(1)
 
         tdSql.execute(
@@ -812,7 +812,7 @@ class TDTestCase:
         tdSql.query("describe `%s` ; " % self.regular_table)
         tdSql.checkRows(11)
 
-        tdSql.query("select _block_dist() from `%s` ; " % self.regular_table)
+        tdSql.query("select count(*) from `%s` ; " % self.regular_table)
         tdSql.checkRows(1)
 
         tdSql.query("show create table `%s` ; " % self.regular_table)
@@ -846,7 +846,7 @@ class TDTestCase:
 
         tdSql.query("select count(*) from  `%s`; " % self.regular_table)
         tdSql.checkData(0, 0, 2)
-        tdSql.query("select _block_dist() from `%s` ; " % self.regular_table)
+        tdSql.query("select count(*) from `%s` ; " % self.regular_table)
         tdSql.checkRows(1)
 
         sql = "select * from (select * from `%s`) ; " % self.regular_table
@@ -1068,7 +1068,7 @@ class TDTestCase:
         tdSql.query("describe `%s` ; " % self.regular_table)
         tdSql.checkRows(11)
 
-        tdSql.query("select _block_dist() from `%s` ; " % self.regular_table)
+        tdSql.query("select count(*) from `%s` ; " % self.regular_table)
         tdSql.checkRows(1)
 
         tdSql.query("show create table `%s` ; " % self.regular_table)
@@ -1104,7 +1104,7 @@ class TDTestCase:
             "select count(*) from  `%s` order by ts desc; " %
             self.regular_table)
         tdSql.checkData(0, 0, 6)
-        tdSql.query("select _block_dist() from `%s` ; " % self.regular_table)
+        tdSql.query("select count(*) from `%s` ; " % self.regular_table)
         tdSql.checkRows(1)
 
         sql = "select * from (select * from `%s` order by ts desc) ; " % self.regular_table
