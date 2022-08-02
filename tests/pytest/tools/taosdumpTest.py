@@ -58,20 +58,18 @@ class TDTestCase:
         if not os.path.exists("./taosdumptest/tmp1"):
             os.makedirs("./taosdumptest/tmp1")
         else:
-            print("directory exists")
-
-        for i in range(1, 9):
-            if not os.path.exists("./taosdumptest/tmp%d" % i):
-                os.makedirs("./taosdumptest/tmp%d" % i)
-            else:
-                os.system("rm -rf ./taosdumptest/tmp%d" % i)
-                os.makedirs("./taosdumptest/tmp%d" % i)
+            os.system("rm -rf ./taosdumptest/tmp1")
+            os.makedirs("./taosdumptest/tmp1")
 
         if not os.path.exists("./taosdumptest/tmp2"):
             os.makedirs("./taosdumptest/tmp2")
+        else:
+            os.system("rm -rf ./taosdumptest/tmp2")
+            os.makedirs("./taosdumptest/tmp2")
+
         tdSql.execute("drop database if exists db")
-        tdSql.execute("create database db  days 11 keep 3649 blocks 8 ")
-        tdSql.execute("create database db1  days 12 keep 3640 blocks 7 ")
+        tdSql.execute("create database db  keep 3649")
+        tdSql.execute("create database db1  keep 3640")
         tdSql.execute("use db")
         tdSql.execute(
             "create table st(ts timestamp, c1 int, c2 nchar(10)) tags(t1 int, t2 binary(10))")
@@ -102,14 +100,14 @@ class TDTestCase:
         tdSql.execute("drop database db")
         tdSql.execute("drop database db1")
         tdSql.query("show databases")
-        tdSql.checkRows(0)
+        tdSql.checkRows(2)
 
         os.system("%s -i ./taosdumptest/tmp1" % binPath)
         os.system("%s -i ./taosdumptest/tmp2" % binPath)
 
         tdSql.execute("use db")
         tdSql.query("show databases")
-        tdSql.checkRows(2)
+        tdSql.checkRows(4)
         dbresult = tdSql.queryResult
         # 6--days,7--keep0,keep1,keep, 12--block,
 
@@ -120,20 +118,15 @@ class TDTestCase:
                 print(dbresult[i])
                 print(type(dbresult[i][6]))
                 print(type(dbresult[i][7]))
-                print(type(dbresult[i][9]))
-                assert dbresult[i][6] == 11
-                if isCommunity:
-                    assert dbresult[i][7] == "3649"
-                else:
-                    assert dbresult[i][7] == "3649,3649,3649"
-                assert dbresult[i][9] == 8
+                print((dbresult[i][6]))
+                assert dbresult[i][6] == "14400m"
+                print((dbresult[i][7]))
+                assert dbresult[i][7] == "5254560m,5254560m,5254560m"
             if dbresult[i][0] == 'db1':
-                assert dbresult[i][6] == 12
-                if isCommunity:
-                    assert dbresult[i][7] == "3640"
-                else:
-                    assert dbresult[i][7] == "3640,3640,3640"
-                assert dbresult[i][9] == 7
+                print((dbresult[i][6]))
+                assert dbresult[i][6] == "14400m"
+                print((dbresult[i][7]))
+                assert dbresult[i][7] == "5241600m,5241600m,5241600m"
 
         tdSql.query("show stables")
         tdSql.checkRows(1)
@@ -141,8 +134,10 @@ class TDTestCase:
 
         tdSql.query("show tables")
         tdSql.checkRows(2)
-        tdSql.checkData(0, 0, 't2')
-        tdSql.checkData(1, 0, 't1')
+        dbresult = tdSql.queryResult
+        print(dbresult)
+        for i in range(len(dbresult)):
+            assert ((dbresult[i][0] == "t1") or (dbresult[i][0] == "t2"))
 
         tdSql.query("select * from t1")
         tdSql.checkRows(100)
@@ -164,7 +159,7 @@ class TDTestCase:
         os.system("rm -rf ./taosdumptest/tmp2")
         os.makedirs("./taosdumptest/tmp1")
         tdSql.execute("create database db12312313231231321312312312_323")
-        tdSql.error("create database db12312313231231321312312312_3231")
+        tdSql.error("create database db012345678911234567892234567893323456789423456789523456789bcdefe")
         tdSql.execute("use db12312313231231321312312312_323")
         tdSql.execute("create stable st12345678912345678912345678912345678912345678912345678912345678912345678912345678912345678912345678912345678912345678912345678912345678912345678912345678912345678912345678912345678912345678_9(ts timestamp, c1 int, c2 nchar(10)) tags(t1 int, t2 binary(10))")
         tdSql.error("create stable st_12345678912345678912345678912345678912345678912345678912345678912345678912345678912345678912345678912345678912345678912345678912345678912345678912345678912345678912345678912345678912345678_9(ts timestamp, c1 int, c2 nchar(10)) tags(t1 int, t2 binary(10))")
