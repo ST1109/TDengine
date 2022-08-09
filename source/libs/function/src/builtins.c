@@ -1461,15 +1461,14 @@ static int32_t translateInterp(SFunctionNode* pFunc, char* pErrBuf, int32_t len)
       }
 
       SValueNode* pValue = (SValueNode*)nodesListGetNode(pFunc->pParameterList, i);
-      int32_t ret = convertStringToTimestamp(paraType, pValue->datum.p, dbPrec, &timeVal[i - 1]);
+      int32_t     ret = convertStringToTimestamp(paraType, pValue->datum.p, dbPrec, &timeVal[i - 1]);
       if (ret != TSDB_CODE_SUCCESS) {
         return invaildFuncParaValueErrMsg(pErrBuf, len, pFunc->functionName);
       }
     }
 
     if (timeVal[0] > timeVal[1]) {
-      return buildFuncErrMsg(pErrBuf, len, TSDB_CODE_FUNC_FUNTION_ERROR,
-                             "INTERP function invalid time range");
+      return buildFuncErrMsg(pErrBuf, len, TSDB_CODE_FUNC_FUNTION_ERROR, "INTERP function invalid time range");
     }
   }
 
@@ -2136,7 +2135,7 @@ const SBuiltinFuncDefinition funcMgtBuiltins[] = {
   {
     .name = "apercentile",
     .type = FUNCTION_TYPE_APERCENTILE,
-    .classification = FUNC_MGT_AGG_FUNC | FUNC_MGT_TIMELINE_FUNC,
+    .classification = FUNC_MGT_AGG_FUNC,
     .translateFunc = translateApercentile,
     .getEnvFunc   = getApercentileFuncEnv,
     .initFunc     = apercentileFunctionSetup,
@@ -2299,7 +2298,7 @@ const SBuiltinFuncDefinition funcMgtBuiltins[] = {
   {
     .name = "derivative",
     .type = FUNCTION_TYPE_DERIVATIVE,
-    .classification = FUNC_MGT_INDEFINITE_ROWS_FUNC | FUNC_MGT_SELECT_FUNC | FUNC_MGT_TIMELINE_FUNC | FUNC_MGT_IMPLICIT_TS_FUNC | 
+    .classification = FUNC_MGT_INDEFINITE_ROWS_FUNC | FUNC_MGT_SELECT_FUNC | FUNC_MGT_TIMELINE_FUNC | FUNC_MGT_IMPLICIT_TS_FUNC |
                       FUNC_MGT_KEEP_ORDER_FUNC | FUNC_MGT_CUMULATIVE_FUNC | FUNC_MGT_FORBID_STREAM_FUNC,
     .translateFunc = translateDerivative,
     .getEnvFunc   = getDerivativeFuncEnv,

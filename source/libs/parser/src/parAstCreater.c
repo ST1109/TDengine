@@ -443,19 +443,23 @@ SNode* createNotBetweenAnd(SAstCreateContext* pCxt, SNode* pExpr, SNode* pLeft, 
                                   createOperatorNode(pCxt, OP_TYPE_GREATER_THAN, nodesCloneNode(pExpr), pRight));
 }
 
-static SNode* createPrimaryKeyCol(SAstCreateContext* pCxt) {
+static SNode* createPrimaryKeyCol(SAstCreateContext* pCxt, const SToken* pFuncName) {
   CHECK_PARSER_STATUS(pCxt);
   SColumnNode* pCol = (SColumnNode*)nodesMakeNode(QUERY_NODE_COLUMN);
   CHECK_OUT_OF_MEM(pCol);
   pCol->colId = PRIMARYKEY_TIMESTAMP_COL_ID;
-  strcpy(pCol->colName, PK_TS_COL_INTERNAL_NAME);
+  if (NULL == pFuncName) {
+    strcpy(pCol->colName, ROWTS_PSEUDO_COLUMN_NAME);
+  } else {
+    strncpy(pCol->colName, pFuncName->z, pFuncName->n);
+  }
   return (SNode*)pCol;
 }
 
 SNode* createFunctionNode(SAstCreateContext* pCxt, const SToken* pFuncName, SNodeList* pParameterList) {
   CHECK_PARSER_STATUS(pCxt);
   if (0 == strncasecmp("_rowts", pFuncName->z, pFuncName->n) || 0 == strncasecmp("_c0", pFuncName->z, pFuncName->n)) {
-    return createPrimaryKeyCol(pCxt);
+    return createPrimaryKeyCol(pCxt, pFuncName);
   }
   SFunctionNode* func = (SFunctionNode*)nodesMakeNode(QUERY_NODE_FUNCTION);
   CHECK_OUT_OF_MEM(func);
@@ -586,7 +590,7 @@ SNode* createStateWindowNode(SAstCreateContext* pCxt, SNode* pExpr) {
   CHECK_PARSER_STATUS(pCxt);
   SStateWindowNode* state = (SStateWindowNode*)nodesMakeNode(QUERY_NODE_STATE_WINDOW);
   CHECK_OUT_OF_MEM(state);
-  state->pCol = createPrimaryKeyCol(pCxt);
+  state->pCol = createPrimaryKeyCol(pCxt, NULL);
   if (NULL == state->pCol) {
     nodesDestroyNode((SNode*)state);
     CHECK_OUT_OF_MEM(state->pCol);
@@ -600,7 +604,7 @@ SNode* createIntervalWindowNode(SAstCreateContext* pCxt, SNode* pInterval, SNode
   CHECK_PARSER_STATUS(pCxt);
   SIntervalWindowNode* interval = (SIntervalWindowNode*)nodesMakeNode(QUERY_NODE_INTERVAL_WINDOW);
   CHECK_OUT_OF_MEM(interval);
-  interval->pCol = createPrimaryKeyCol(pCxt);
+  interval->pCol = createPrimaryKeyCol(pCxt, NULL);
   if (NULL == interval->pCol) {
     nodesDestroyNode((SNode*)interval);
     CHECK_OUT_OF_MEM(interval->pCol);
@@ -639,7 +643,7 @@ SNode* createGroupingSetNode(SAstCreateContext* pCxt, SNode* pNode) {
 
 SNode* createInterpTimeRange(SAstCreateContext* pCxt, SNode* pStart, SNode* pEnd) {
   CHECK_PARSER_STATUS(pCxt);
-  return createBetweenAnd(pCxt, createPrimaryKeyCol(pCxt), pStart, pEnd);
+  return createBetweenAnd(pCxt, createPrimaryKeyCol(pCxt, NULL), pStart, pEnd);
 }
 
 SNode* setProjectionAlias(SAstCreateContext* pCxt, SNode* pNode, SToken* pAlias) {
@@ -752,7 +756,7 @@ SNode* addFillClause(SAstCreateContext* pCxt, SNode* pStmt, SNode* pFill) {
   if (QUERY_NODE_SELECT_STMT == nodeType(pStmt) && NULL != pFill) {
     SFillNode* pFillClause = (SFillNode*)pFill;
     nodesDestroyNode(pFillClause->pWStartTs);
-    pFillClause->pWStartTs = createPrimaryKeyCol(pCxt);
+    pFillClause->pWStartTs = createPrimaryKeyCol(pCxt, NULL);
     ((SSelectStmt*)pStmt)->pFill = (SNode*)pFillClause;
   }
   return pStmt;
@@ -815,6 +819,10 @@ SNode* createDefaultDatabaseOptions(SAstCreateContext* pCxt) {
   pOptions->numOfVgroups = TSDB_DEFAULT_VN_PER_DB;
   pOptions->singleStable = TSDB_DEFAULT_DB_SINGLE_STABLE;
   pOptions->schemaless = TSDB_DEFAULT_DB_SCHEMALESS;
+  pOptions->walRetentionPeriod = TSDB_DEFAULT_DB_WAL_RETENTION_PERIOD;
+  pOptions->walRetentionSize = TSDB_DEFAULT_DB_WAL_RETENTION_SIZE;
+  pOptions->walRollPeriod = TSDB_DEFAULT_DB_WAL_ROLL_PERIOD;
+  pOptions->walSegmentSize = TSDB_DEFAULT_DB_WAL_SEGMENT_SIZE;
   return (SNode*)pOptions;
 }
 
@@ -842,6 +850,10 @@ SNode* createAlterDatabaseOptions(SAstCreateContext* pCxt) {
   pOptions->numOfVgroups = -1;
   pOptions->singleStable = -1;
   pOptions->schemaless = -1;
+  pOptions->walRetentionPeriod = -1;
+  pOptions->walRetentionSize = -1;
+  pOptions->walRollPeriod = -1;
+  pOptions->walSegmentSize = -1;
   return (SNode*)pOptions;
 }
 
@@ -1731,7 +1743,7 @@ SNode* createCountFuncForDelete(SAstCreateContext* pCxt) {
   SFunctionNode* pFunc = (SFunctionNode*)nodesMakeNode(QUERY_NODE_FUNCTION);
   CHECK_OUT_OF_MEM(pFunc);
   strcpy(pFunc->functionName, "count");
-  if (TSDB_CODE_SUCCESS != nodesListMakeStrictAppend(&pFunc->pParameterList, createPrimaryKeyCol(pCxt))) {
+  if (TSDB_CODE_SUCCESS != nodesListMakeStrictAppend(&pFunc->pParameterList, createPrimaryKeyCol(pCxt, NULL))) {
     nodesDestroyNode((SNode*)pFunc);
     CHECK_OUT_OF_MEM(NULL);
   }

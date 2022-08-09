@@ -258,7 +258,7 @@ SResultRow* doSetResultOutBufByKey(SDiskbasedBuf* pResultBuf, SResultRowInfo* pR
   // in case of repeat scan/reverse scan, no new time window added.
   if (isIntervalQuery) {
     if (masterscan && p1 != NULL) {  // the *p1 may be NULL in case of sliding+offset exists.
-      pResult = getResultRowByPos(pResultBuf, p1);
+      pResult = getResultRowByPos(pResultBuf, p1, true);
       ASSERT(pResult->pageId == p1->pageId && pResult->offset == p1->offset);
     }
   } else {
@@ -266,7 +266,7 @@ SResultRow* doSetResultOutBufByKey(SDiskbasedBuf* pResultBuf, SResultRowInfo* pR
     // pResultRowInfo object.
     if (p1 != NULL) {
       // todo
-      pResult = getResultRowByPos(pResultBuf, p1);
+      pResult = getResultRowByPos(pResultBuf, p1, true);
       ASSERT(pResult->pageId == p1->pageId && pResult->offset == p1->offset);
     }
   }
@@ -1437,7 +1437,8 @@ static void setExecutionContext(SOperatorInfo* pOperator, int32_t numOfOutput, u
   pAggInfo->groupId = groupId;
 }
 
-static void doUpdateNumOfRows(SResultRow* pRow, int32_t numOfExprs, const int32_t* rowCellOffset) {
+static void doUpdateNumOfRows(SqlFunctionCtx* pCtx, SResultRow* pRow, int32_t numOfExprs, const int32_t* rowCellOffset) {
+  bool returnNotNull = false;
   for (int32_t j = 0; j < numOfExprs; ++j) {
     struct SResultRowEntryInfo* pResInfo = getResultEntryInfo(pRow, j, rowCellOffset);
     if (!isRowEntryInitialized(pResInfo)) {
@@ -1447,6 +1448,15 @@ static void doUpdateNumOfRows(SResultRow* pRow, int32_t numOfExprs, const int32_
     if (pRow->numOfRows < pResInfo->numOfRes) {
       pRow->numOfRows = pResInfo->numOfRes;
     }
+
+    if (fmIsNotNullOutputFunc(pCtx[j].functionId)) {
+      returnNotNull = true;
+    }
+  }
+  // if all expr skips all blocks, e.g. all null inputs for max function, output one row in final result.
+  //  except for first/last, which require not null output, output no rows
+  if (pRow->numOfRows == 0 && !returnNotNull) {
+    pRow->numOfRows = 1;
   }
 }
 
@@ -1458,7 +1468,7 @@ int32_t finalizeResultRowIntoResultDataBlock(SDiskbasedBuf* pBuf, SResultRowPosi
   SFilePage*  page = getBufPage(pBuf, resultRowPosition->pageId);
   SResultRow* pRow = (SResultRow*)((char*)page + resultRowPosition->offset);
 
-  doUpdateNumOfRows(pRow, numOfExprs, rowCellOffset);
+  doUpdateNumOfRows(pCtx, pRow, numOfExprs, rowCellOffset);
   if (pRow->numOfRows == 0) {
     releaseBufPage(pBuf, page);
     return 0;
@@ -1514,7 +1524,7 @@ int32_t doCopyToSDataBlock(SExecTaskInfo* pTaskInfo, SSDataBlock* pBlock, SExprI
 
     SResultRow* pRow = (SResultRow*)((char*)page + pPos->pos.offset);
 
-    doUpdateNumOfRows(pRow, numOfExprs, rowCellOffset);
+    doUpdateNumOfRows(pCtx, pRow, numOfExprs, rowCellOffset);
     if (pRow->numOfRows == 0) {
       pGroupResInfo->index += 1;
       releaseBufPage(pBuf, page);
@@ -3330,18 +3340,16 @@ static SSDataBlock* doFill(SOperatorInfo* pOperator) {
 }
 
 void destroyExprInfo(SExprInfo* pExpr, int32_t numOfExprs) {
-  if (pExpr) {
-    for (int32_t i = 0; i < numOfExprs; ++i) {
-      SExprInfo* pExprInfo = &pExpr[i];
-      for (int32_t j = 0; j < pExprInfo->base.numOfParams; ++j) {
-        if (pExprInfo->base.pParam[j].type == FUNC_PARAM_TYPE_COLUMN) {
-          taosMemoryFreeClear(pExprInfo->base.pParam[j].pCol);
-        }
+  for (int32_t i = 0; i < numOfExprs; ++i) {
+    SExprInfo* pExprInfo = &pExpr[i];
+    for (int32_t j = 0; j < pExprInfo->base.numOfParams; ++j) {
+      if (pExprInfo->base.pParam[j].type == FUNC_PARAM_TYPE_COLUMN) {
+        taosMemoryFreeClear(pExprInfo->base.pParam[j].pCol);
       }
-
-      taosMemoryFree(pExprInfo->base.pParam);
-      taosMemoryFree(pExprInfo->pExpr);
     }
+
+    taosMemoryFree(pExprInfo->base.pParam);
+    taosMemoryFree(pExprInfo->pExpr);
   }
 }
 
@@ -3483,9 +3491,8 @@ void cleanupExprSupp(SExprSupp* pSupp) {
   destroySqlFunctionCtx(pSupp->pCtx, pSupp->numOfExprs);
   if (pSupp->pExprInfo != NULL) {
     destroyExprInfo(pSupp->pExprInfo, pSupp->numOfExprs);
+    taosMemoryFreeClear(pSupp->pExprInfo);
   }
-
-  taosMemoryFreeClear(pSupp->pExprInfo);
   taosMemoryFree(pSupp->rowEntryInfoOffset);
 }
 
@@ -4076,6 +4083,7 @@ SOperatorInfo* createOperatorTree(SPhysiNode* pPhyNode, SExecTaskInfo* pTaskInfo
     SPhysiNode* pChildNode = (SPhysiNode*)nodesListGetNode(pPhyNode->pChildren, i);
     ops[i] = createOperatorTree(pChildNode, pTaskInfo, pHandle, pTableListInfo, pTagCond, pTagIndexCond, pUser);
     if (ops[i] == NULL) {
+      taosMemoryFree(ops);
       return NULL;
     } else {
       ops[i]->resultDataBlockId = pChildNode->pOutputDataBlockDesc->dataBlockId;
@@ -4182,7 +4190,7 @@ SOperatorInfo* createOperatorTree(SPhysiNode* pPhyNode, SExecTaskInfo* pTaskInfo
     int32_t children = 0;
     pOptr = createStreamFinalSessionAggOperatorInfo(ops[0], pPhyNode, pTaskInfo, children);
   } else if (QUERY_NODE_PHYSICAL_PLAN_STREAM_FINAL_SESSION == type) {
-    int32_t children = 1;
+    int32_t children = pHandle->numOfVgroups;
     pOptr = createStreamFinalSessionAggOperatorInfo(ops[0], pPhyNode, pTaskInfo, children);
   } else if (QUERY_NODE_PHYSICAL_PLAN_PARTITION == type) {
     pOptr = createPartitionOperatorInfo(ops[0], (SPartitionPhysiNode*)pPhyNode, pTaskInfo);
@@ -4494,7 +4502,7 @@ int32_t createDataSinkParam(SDataSinkNode* pNode, void** pParam, qTaskInfo_t* pT
 }
 
 int32_t createExecTaskInfoImpl(SSubplan* pPlan, SExecTaskInfo** pTaskInfo, SReadHandle* pHandle, uint64_t taskId,
-                               const char* sql, EOPTR_EXEC_MODEL model) {
+                               char* sql, EOPTR_EXEC_MODEL model) {
   uint64_t queryId = pPlan->id.queryId;
 
   int32_t code = TSDB_CODE_SUCCESS;
@@ -4505,6 +4513,7 @@ int32_t createExecTaskInfoImpl(SSubplan* pPlan, SExecTaskInfo** pTaskInfo, SRead
   }
 
   (*pTaskInfo)->sql = sql;
+  sql = NULL;
   (*pTaskInfo)->pSubplan = pPlan;
   (*pTaskInfo)->pRoot = createOperatorTree(pPlan->pNode, *pTaskInfo, pHandle, &(*pTaskInfo)->tableqinfoList,
                                            pPlan->pTagCond, pPlan->pTagIndexCond, pPlan->user);
@@ -4517,7 +4526,8 @@ int32_t createExecTaskInfoImpl(SSubplan* pPlan, SExecTaskInfo** pTaskInfo, SRead
   return code;
 
 _complete:
-  taosMemoryFreeClear(*pTaskInfo);
+  taosMemoryFree(sql);
+  doDestroyTask(*pTaskInfo);
   terrno = code;
   return code;
 }
