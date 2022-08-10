@@ -317,7 +317,7 @@ static int32_t getTableDelDataFromDelIdx(SDelFReader *pDelReader, SDelIdx *pDelI
   int32_t code = 0;
 
   if (pDelIdx) {
-    code = tsdbReadDelData(pDelReader, pDelIdx, aDelData, NULL);
+    code = tsdbReadDelData(pDelReader, pDelIdx, aDelData);
   }
 
   return code;
@@ -388,8 +388,7 @@ static int32_t getTableDelIdx(SDelFReader *pDelFReader, tb_uid_t suid, tb_uid_t 
   SDelIdx idx = {.suid = suid, .uid = uid};
 
   // tMapDataReset(&delIdxMap);
-  //  code = tsdbReadDelIdx(pDelFReader, &delIdxMap, NULL);
-  code = tsdbReadDelIdx(pDelFReader, pDelIdxArray, NULL);
+  code = tsdbReadDelIdx(pDelFReader, pDelIdxArray);
   if (code) goto _err;
 
   // code = tMapDataSearch(&delIdxMap, &idx, tGetDelIdx, tCmprDelIdx, pDelIdx);
@@ -451,9 +450,9 @@ static int32_t getNextRowFromFS(void *iter, TSDBROW **ppRow) {
       if (--state->iFileSet >= 0) {
         pFileSet = (SDFileSet *)taosArrayGet(state->aDFileSet, state->iFileSet);
       } else {
-        // tBlockDataClear(&state->blockData, 1);
+        // tBlockDataDestroy(&state->blockData, 1);
         if (state->pBlockData) {
-          tBlockDataClear(state->pBlockData, 1);
+          tBlockDataDestroy(state->pBlockData, 1);
           state->pBlockData = NULL;
         }
 
@@ -465,13 +464,12 @@ static int32_t getNextRowFromFS(void *iter, TSDBROW **ppRow) {
       if (code) goto _err;
 
       // tMapDataReset(&state->blockIdxMap);
-      // code = tsdbReadBlockIdx(state->pDataFReader, &state->blockIdxMap, NULL);
       if (!state->aBlockIdx) {
         state->aBlockIdx = taosArrayInit(0, sizeof(SBlockIdx));
       } else {
         taosArrayClear(state->aBlockIdx);
       }
-      code = tsdbReadBlockIdx(state->pDataFReader, state->aBlockIdx, NULL);
+      code = tsdbReadBlockIdx(state->pDataFReader, state->aBlockIdx);
       if (code) goto _err;
 
       /* if (state->pBlockIdx) { */
@@ -487,8 +485,7 @@ static int32_t getNextRowFromFS(void *iter, TSDBROW **ppRow) {
       }
 
       tMapDataReset(&state->blockMap);
-      code = tsdbReadBlock(state->pDataFReader, state->pBlockIdx, &state->blockMap, NULL);
-      /* code = tsdbReadBlock(state->pDataFReader, &state->blockIdx, &state->blockMap, NULL); */
+      code = tsdbReadBlock(state->pDataFReader, state->pBlockIdx, &state->blockMap);
       if (code) goto _err;
 
       state->nBlock = state->blockMap.nItem;
@@ -497,7 +494,7 @@ static int32_t getNextRowFromFS(void *iter, TSDBROW **ppRow) {
       if (!state->pBlockData) {
         state->pBlockData = &state->blockData;
 
-        tBlockDataInit(&state->blockData);
+        tBlockDataCreate(&state->blockData);
       }
     }
     case SFSNEXTROW_BLOCKDATA:
@@ -510,7 +507,7 @@ static int32_t getNextRowFromFS(void *iter, TSDBROW **ppRow) {
 
         tMapDataGetItemByIdx(&state->blockMap, state->iBlock, &block, tGetBlock);
         /* code = tsdbReadBlockData(state->pDataFReader, &state->blockIdx, &block, &state->blockData, NULL, NULL); */
-        code = tsdbReadBlockData(state->pDataFReader, state->pBlockIdx, &block, state->pBlockData, NULL, NULL);
+        code = tsdbReadDataBlock(state->pDataFReader, &block, state->pBlockData);
         if (code) goto _err;
 
         state->nRow = state->blockData.nRow;
@@ -555,8 +552,8 @@ _err:
     state->aBlockIdx = NULL;
   }
   if (state->pBlockData) {
-    // tBlockDataClear(&state->blockData, 1);
-    tBlockDataClear(state->pBlockData, 1);
+    // tBlockDataDestroy(&state->blockData, 1);
+    tBlockDataDestroy(state->pBlockData, 1);
     state->pBlockData = NULL;
   }
 
@@ -582,8 +579,8 @@ int32_t clearNextRowFromFS(void *iter) {
     state->aBlockIdx = NULL;
   }
   if (state->pBlockData) {
-    // tBlockDataClear(&state->blockData, 1);
-    tBlockDataClear(state->pBlockData, 1);
+    // tBlockDataDestroy(&state->blockData, 1);
+    tBlockDataDestroy(state->pBlockData, 1);
     state->pBlockData = NULL;
   }
 
@@ -763,7 +760,7 @@ static int32_t nextRowIterOpen(CacheNextRowIter *pIter, tb_uid_t uid, STsdb *pTs
   if (pDelFile) {
     SDelFReader *pDelFReader;
 
-    code = tsdbDelFReaderOpen(&pDelFReader, pDelFile, pTsdb, NULL);
+    code = tsdbDelFReaderOpen(&pDelFReader, pDelFile, pTsdb);
     if (code) goto _err;
 
     code = getTableDelIdx(pDelFReader, suid, uid, &delIdx);
