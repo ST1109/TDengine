@@ -442,6 +442,7 @@ static int32_t tsdbCommitFileDataStart(SCommitter *pCommitter) {
     tBlockDataReset(&pCommitter->dReader.bData);
 
     // last
+#if 0
     code = tsdbReadBlockL(pCommitter->dReader.pReader, pCommitter->dReader.aBlockL);
     if (code) goto _err;
 
@@ -451,6 +452,9 @@ static int32_t tsdbCommitFileDataStart(SCommitter *pCommitter) {
     tBlockDataReset(&pCommitter->dReader.bDatal);
     code = tsdbCommitterNextLastRow(pCommitter);
     if (code) goto _err;
+#endif
+    pCommitter->dReader.pBlockIdx = NULL;
+    pCommitter->dReader.pRowInfo = NULL;
   } else {
     pCommitter->dReader.pBlockIdx = NULL;
     pCommitter->dReader.pRowInfo = NULL;
@@ -885,6 +889,8 @@ static int32_t tsdbMergeCommitLast(SCommitter *pCommitter, STbDataIter *pIter) {
           if (code) goto _err;
           goto _outer_break;
         }
+      } else {
+        if (nRow == 0) goto _outer_break;
       }
     }
 
@@ -908,7 +914,10 @@ static int32_t tsdbMergeCommitLast(SCommitter *pCommitter, STbDataIter *pIter) {
           if (code) goto _err;
           goto _outer_break;
         }
+      } else {
+        if (nRow == 0) goto _outer_break;
       }
+
     }
 
     while (pRowInfo) {
@@ -930,7 +939,10 @@ static int32_t tsdbMergeCommitLast(SCommitter *pCommitter, STbDataIter *pIter) {
           if (code) goto _err;
           goto _outer_break;
         }
+      } else {
+        if (nRow == 0) goto _outer_break;
       }
+
     }
 
   _outer_break:
