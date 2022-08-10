@@ -51,7 +51,7 @@ static int32_t registerRequest(SRequestObj *pRequest, STscObj *pTscObj) {
 
     int32_t total = atomic_add_fetch_64((int64_t *)&pSummary->totalRequests, 1);
     int32_t currentInst = atomic_add_fetch_64((int64_t *)&pSummary->currentRequests, 1);
-    printf("%" PRId64 " 0x%" PRIx64 " new Request from connObj:0x%" PRIx64
+    tscFatal("%" PRId64 " 0x%" PRIx64 " new Request from connObj:0x%" PRIx64
              ", current:%d, app current:%d, total:%d, reqId:0x%" PRIx64 "\n", taosGetTimestampMs(),
              pRequest->self, pRequest->pTscObj->id, num, currentInst, total, pRequest->requestId);
   }
@@ -70,7 +70,7 @@ static void deregisterRequest(SRequestObj *pRequest) {
   int32_t num = atomic_sub_fetch_32(&pTscObj->numOfReqs, 1);
 
   int64_t duration = taosGetTimestampUs() - pRequest->metric.start;
-  printf("%" PRId64 " 0x%" PRIx64 " free Request from connObj: 0x%" PRIx64 ", reqId:0x%" PRIx64 " elapsed:%" PRIu64
+  tscFatal("%" PRId64 " 0x%" PRIx64 " free Request from connObj: 0x%" PRIx64 ", reqId:0x%" PRIx64 " elapsed:%" PRIu64
            " ms, current:%d, app current:%d\n", taosGetTimestampMs(),
            pRequest->self, pTscObj->id, pRequest->requestId, duration / 1000, num, currentInst);
 

@@ -882,7 +882,7 @@ _return:
 int32_t ctgCallUserCb(void* param) {
   SCtgJob* pJob = (SCtgJob*)param;
 
-  printf("%" PRId64 " QID:0x%" PRIx64 " ctg start to call user cb with rsp %s\n", taosGetTimestampMs(), pJob->queryId, tstrerror(pJob->jobResCode));
+  qFatal("%" PRId64 " QID:0x%" PRIx64 " ctg start to call user cb with rsp %s\n", taosGetTimestampMs(), pJob->queryId, tstrerror(pJob->jobResCode));
   
   (*pJob->userFp)(&pJob->jobRes, pJob->userParam, pJob->jobResCode);
 

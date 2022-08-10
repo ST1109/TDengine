@@ -843,7 +843,7 @@ void schedulerExecCb(SExecResult* pResult, void* param, int32_t code) {
 
   taosMemoryFree(pResult);
 
-  printf("%" PRId64 " 0x%" PRIx64 " enter scheduler exec cb, code:%d - %s, reqId:0x%" PRIx64 "\n", taosGetTimestampMs(), pRequest->self, code,
+  tscFatal("%" PRId64 " 0x%" PRIx64 " enter scheduler exec cb, code:%d - %s, reqId:0x%" PRIx64 "\n", taosGetTimestampMs(), pRequest->self, code,
            tstrerror(code), pRequest->requestId);
 
   STscObj* pTscObj = pRequest->pTscObj;
@@ -863,7 +863,6 @@ void schedulerExecCb(SExecResult* pResult, void* param, int32_t code) {
     pRequest->code = code;
   }
 
-  printf("%" PRId64 " schedulerExecCb request type %s\n", taosGetTimestampMs(), TMSG_INFO(pRequest->type));
   if (NEED_CLIENT_RM_TBLMETA_REQ(pRequest->type)) {
     removeMeta(pTscObj, pRequest->targetTableList);
   }

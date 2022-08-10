@@ -702,7 +702,7 @@ void retrieveMetaCallback(SMetaData *pResultMeta, void *param, int32_t code) {
 
     destorySqlParseWrapper(pWrapper);
 
-    printf("%" PRId64 " 0x%" PRIx64 " analysis semantics completed, start async query, reqId:0x%" PRIx64 "\n", taosGetTimestampMs(), pRequest->self,
+    tscFatal("%" PRId64 " 0x%" PRIx64 " analysis semantics completed, start async query, reqId:0x%" PRIx64 "\n", taosGetTimestampMs(), pRequest->self,
              pRequest->requestId);
     launchAsyncQuery(pRequest, pQuery, pResultMeta);
     qDestroyQuery(pQuery);
