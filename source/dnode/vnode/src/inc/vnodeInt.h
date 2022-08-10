@@ -97,7 +97,7 @@ typedef struct STbUidStore STbUidStore;
 
 int             metaOpen(SVnode* pVnode, SMeta** ppMeta);
 int             metaClose(SMeta* pMeta);
-int             metaBegin(SMeta* pMeta);
+int             metaBegin(SMeta* pMeta, int8_t fromSys);
 int             metaCommit(SMeta* pMeta);
 int             metaCreateSTable(SMeta* pMeta, int64_t version, SVCreateStbReq* pReq);
 int             metaAlterSTable(SMeta* pMeta, int64_t version, SVCreateStbReq* pReq);
@@ -129,6 +129,14 @@ int             metaTtlSmaller(SMeta* pMeta, uint64_t time, SArray* uidList);
 
 int32_t metaCreateTSma(SMeta* pMeta, int64_t version, SSmaCfg* pCfg);
 int32_t metaDropTSma(SMeta* pMeta, int64_t indexUid);
+
+typedef struct SEntryInfo {
+  int64_t uid;
+  int64_t suid;
+  int64_t version;
+  int32_t skmVer;
+} SEntryInfo;
+int32_t metaCacheGet(SMeta* pMeta, int64_t uid, SEntryInfo* pInfo);
 
 // tsdb
 int         tsdbOpen(SVnode* pVnode, STsdb** ppTsdb, const char* dir, STsdbKeepCfg* pKeepCfg);
@@ -187,7 +195,7 @@ int32_t smaAsyncPreCommit(SSma* pSma);
 int32_t smaAsyncCommit(SSma* pSma);
 int32_t smaAsyncPostCommit(SSma* pSma);
 int32_t smaDoRetention(SSma* pSma, int64_t now);
-int32_t smaProcessFetch(SSma *pSma, void* pMsg);
+int32_t smaProcessFetch(SSma* pSma, void* pMsg);
 
 int32_t tdProcessTSmaCreate(SSma* pSma, int64_t version, const char* msg);
 int32_t tdProcessTSmaInsert(SSma* pSma, int64_t indexUid, const char* msg);
