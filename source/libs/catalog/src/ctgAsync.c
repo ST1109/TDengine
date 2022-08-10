@@ -882,7 +882,7 @@ _return:
 int32_t ctgCallUserCb(void* param) {
   SCtgJob* pJob = (SCtgJob*)param;
 
-  qDebug("QID:0x%" PRIx64 " ctg start to call user cb with rsp %s", pJob->queryId, tstrerror(pJob->jobResCode));
+  printf("%" PRId64 " QID:0x%" PRIx64 " ctg start to call user cb with rsp %s\n", taosGetTimestampMs(), pJob->queryId, tstrerror(pJob->jobResCode));
   
   (*pJob->userFp)(&pJob->jobRes, pJob->userParam, pJob->jobResCode);
 
@@ -901,7 +901,7 @@ int32_t ctgHandleTaskEnd(SCtgTask* pTask, int32_t rspCode) {
     return TSDB_CODE_SUCCESS;
   }
 
-  qDebug("QID:0x%" PRIx64 " task %d end with res %s", pJob->queryId, pTask->taskId, tstrerror(rspCode));
+  //printf("%" PRId64 " QID:0x%" PRIx64 " task %d end with res %s\n", taosGetTimestampMs(), pJob->queryId, pTask->taskId, tstrerror(rspCode));
 
   pTask->code = rspCode;
   pTask->status = CTG_TASK_DONE;
@@ -2265,7 +2265,7 @@ int32_t ctgLaunchJob(SCtgJob *pJob) {
   for (int32_t i = 0; i < taskNum; ++i) {
     SCtgTask *pTask = taosArrayGet(pJob->pTasks, i);
 
-    qDebug("QID:0x%" PRIx64 " ctg launch [%dth] task", pJob->queryId, pTask->taskId);
+    //printf("%" PRId64 " QID:0x%" PRIx64 " ctg launch [%dth] task\n", taosGetTimestampMs(), pJob->queryId, pTask->taskId);
     CTG_ERR_RET((*gCtgAsyncFps[pTask->type].launchFp)(pTask));
     
     pTask->status = CTG_TASK_LAUNCHED;

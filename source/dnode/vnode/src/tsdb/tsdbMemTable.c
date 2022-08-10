@@ -108,8 +108,9 @@ int32_t tsdbInsertTableData(STsdb *pTsdb, int64_t version, SSubmitMsgIter *pMsgI
   STbData   *pTbData = NULL;
   tb_uid_t   suid = pMsgIter->suid;
   tb_uid_t   uid = pMsgIter->uid;
-  int32_t    sverNew;
+  int32_t    sverNew = 1;
 
+#if 0
   // check if table exists (todo: refact)
   SMetaReader mr = {0};
   // SMetaEntry  me = {0};
@@ -130,6 +131,7 @@ int32_t tsdbInsertTableData(STsdb *pTsdb, int64_t version, SSubmitMsgIter *pMsgI
     sverNew = mr.me.stbEntry.schemaRow.version;
   }
   metaReaderClear(&mr);
+#endif
   pRsp->sver = sverNew;
 
   // create/get STbData to op

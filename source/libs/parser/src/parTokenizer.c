@@ -277,27 +277,33 @@ static void doInitKeywordsTable(void) {
 
 static TdThreadOnce keywordsHashTableInit = PTHREAD_ONCE_INIT;
 
-static int32_t tKeywordCode(const char* z, int n) {
+static int32_t tKeywordCode(const char* z, int n) { 
+  static int32_t first = 1;
+  if (first)  {
   taosThreadOnce(&keywordsHashTableInit, doInitKeywordsTable);
-
-  char key[512] = {0};
-  if (n > tListLen(key)) {  // too long token, can not be any other token type
-    return TK_NK_ID;
+  first = 0;
   }
 
+  //static char key[512] = {0};
+  //if (n > tListLen(key)) {  // too long token, can not be any other token type
+  //  return TK_NK_ID;
+  //}
+
+  /*
   for (int32_t j = 0; j < n; ++j) {
     if (z[j] >= 'a' && z[j] <= 'z') {
-      key[j] = (char)(z[j] & 0xDF);  // to uppercase and set the null-terminated
+      ((char*)z)[j] = (char)(z[j] & 0xDF);  // to uppercase and set the null-terminated
     } else {
-      key[j] = z[j];
+      //key[j] = z[j];
     }
   }
 
   if (keywordHashTable == NULL) {
     return TK_NK_ILLEGAL;
   }
+  */
 
-  SKeyword** pKey = (SKeyword**)taosHashGet(keywordHashTable, key, n);
+  SKeyword** pKey = (SKeyword**)taosHashGet(keywordHashTable, z, n);
   return (pKey != NULL) ? (*pKey)->type : TK_NK_ID;
 }
 
@@ -588,7 +594,10 @@ uint32_t tGetToken(const char* z, uint32_t* tokenId) {
       if (((*z & 0x80) != 0) || !isIdChar[(uint8_t)*z]) {
         break;
       }
-      for (i = 1; ((z[i] & 0x80) == 0) && isIdChar[(uint8_t)z[i]]; i++) {
+      for (i = 0; ((z[i] & 0x80) == 0) && isIdChar[(uint8_t)z[i]]; i++) {
+	      if (z[i] >= 'a' && z[i] <= 'z') {
+		            ((char*)z)[i] = (char)(z[i] & 0xDF);  // to uppercase and set the null-terminated
+              }
       }
       *tokenId = tKeywordCode(z, i);
       return i;

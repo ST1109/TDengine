@@ -196,6 +196,7 @@ int32_t qAnalyseSqlSemantic(SParseContext* pCxt, const struct SCatalogReq* pCata
                             const struct SMetaData* pMetaData, SQuery* pQuery) {
   SParseMetaCache metaCache = {0};
   int32_t         code = putMetaDataToCache(pCatalogReq, pMetaData, &metaCache);
+  printf("%" PRId64 " after putmeta to cache\n", taosGetTimestampMs());
   if (TSDB_CODE_SUCCESS == code) {
     if (NULL == pQuery->pRoot) {
       code = parseInsertSql(pCxt, &pQuery, &metaCache);

@@ -237,7 +237,6 @@ static int32_t getTableMetaImpl(SInsertParseContext* pCxt, SName* name, char* db
   if (!pass) {
     return TSDB_CODE_PAR_PERMISSION_DENIED;
   }
-
   CHECK_CODE(getTableSchema(pCxt, name, isStb, &pCxt->pTableMeta));
   if (!isStb) {
     SVgroupInfo vg;
@@ -1399,6 +1398,7 @@ static int32_t parseInsertBody(SInsertParseContext* pCxt) {
       return buildInvalidOperationMsg(&pCxt->msg, "single table allowed in one stmt");
     }
 
+    //printf("%" PRId64 " 1\n", taosGetTimestampMs());
     destroyInsertParseContextForTable(pCxt);
 
     if (TK_NK_QUESTION == sToken.type) {
@@ -1418,6 +1418,7 @@ static int32_t parseInsertBody(SInsertParseContext* pCxt) {
     SName name;
     CHECK_CODE(createSName(&name, &tbnameToken, pCxt->pComCxt->acctId, pCxt->pComCxt->db, &pCxt->msg));
 
+    //printf("%" PRId64 " 2\n", taosGetTimestampMs());
     tNameExtractFullName(&name, tbFName);
     CHECK_CODE(taosHashPut(pCxt->pTableNameHashObj, tbFName, strlen(tbFName), &name, sizeof(SName)));
     char dbFName[TSDB_DB_FNAME_LEN];
@@ -1450,11 +1451,13 @@ static int32_t parseInsertBody(SInsertParseContext* pCxt) {
       CHECK_CODE(getTableMeta(pCxt, &name, dbFName));
     }
 
+    //printf("%" PRId64 " 3\n", taosGetTimestampMs());
     STableDataBlocks* dataBuf = NULL;
     CHECK_CODE(getDataBlockFromList(pCxt->pTableBlockHashObj, tbFName, strlen(tbFName), TSDB_DEFAULT_PAYLOAD_SIZE,
                                     sizeof(SSubmitBlk), getTableInfo(pCxt->pTableMeta).rowSize, pCxt->pTableMeta,
                                     &dataBuf, NULL, &pCxt->createTblReq));
 
+    //printf("%" PRId64 " 4\n", taosGetTimestampMs());
     if (NULL != pBoundColsStart) {
       char* pCurrPos = pCxt->pSql;
       pCxt->pSql = pBoundColsStart;
@@ -1468,6 +1471,7 @@ static int32_t parseInsertBody(SInsertParseContext* pCxt) {
       TSDB_QUERY_SET_TYPE(pCxt->pOutput->insertType, TSDB_QUERY_TYPE_INSERT);
 
       tbNum++;
+      //printf("%" PRId64 " 5\n", taosGetTimestampMs());
       continue;
     }
 
@@ -1488,6 +1492,7 @@ static int32_t parseInsertBody(SInsertParseContext* pCxt) {
     return buildSyntaxErrMsg(&pCxt->msg, "keyword VALUES or FILE is expected", sToken.z);
   }
 
+  //printf("%" PRId64 " before merge blocks\n", taosGetTimestampMs());
   qDebug("0x%" PRIx64 " insert input rows: %d", pCxt->pComCxt->requestId, pCxt->totalNum);
 
   if (TSDB_QUERY_HAS_TYPE(pCxt->pOutput->insertType, TSDB_QUERY_TYPE_STMT_INSERT)) {
@@ -1526,8 +1531,8 @@ int32_t parseInsertSql(SParseContext* pContext, SQuery** pQuery, SParseMetaCache
       .msg = {.buf = pContext->pMsg, .len = pContext->msgLen},
       .pTableMeta = NULL,
       .createTblReq = {0},
-      .pSubTableHashObj = taosHashInit(128, taosGetDefaultHashFunction(TSDB_DATA_TYPE_VARCHAR), true, HASH_NO_LOCK),
-      .pTableNameHashObj = taosHashInit(128, taosGetDefaultHashFunction(TSDB_DATA_TYPE_VARCHAR), true, HASH_NO_LOCK),
+      .pSubTableHashObj = taosHashInit(5000, taosGetDefaultHashFunction(TSDB_DATA_TYPE_VARCHAR), true, HASH_NO_LOCK),
+      .pTableNameHashObj = taosHashInit(5000, taosGetDefaultHashFunction(TSDB_DATA_TYPE_VARCHAR), true, HASH_NO_LOCK),
       .pDbFNameHashObj = taosHashInit(64, taosGetDefaultHashFunction(TSDB_DATA_TYPE_VARCHAR), true, HASH_NO_LOCK),
       .totalNum = 0,
       .pOutput = (SVnodeModifOpStmt*)nodesMakeNode(QUERY_NODE_VNODE_MODIF_STMT),
@@ -1540,7 +1545,7 @@ int32_t parseInsertSql(SParseContext* pContext, SQuery** pQuery, SParseMetaCache
   } else {
     context.pVgroupsHashObj = taosHashInit(128, taosGetDefaultHashFunction(TSDB_DATA_TYPE_INT), true, HASH_NO_LOCK);
     context.pTableBlockHashObj =
-        taosHashInit(128, taosGetDefaultHashFunction(TSDB_DATA_TYPE_BINARY), true, HASH_NO_LOCK);
+        taosHashInit(5000, taosGetDefaultHashFunction(TSDB_DATA_TYPE_BINARY), true, HASH_NO_LOCK);
   }
 
   if (NULL == context.pVgroupsHashObj || NULL == context.pTableBlockHashObj || NULL == context.pSubTableHashObj ||
@@ -1587,6 +1592,7 @@ int32_t parseInsertSql(SParseContext* pContext, SQuery** pQuery, SParseMetaCache
   if (TSDB_CODE_SUCCESS == code) {
     code = parseInsertBody(&context);
   }
+  //printf("%" PRId64 " after parse insert body\n", taosGetTimestampMs());
   if (TSDB_CODE_SUCCESS == code || NEED_CLIENT_HANDLE_ERROR(code)) {
     SName* pTable = taosHashIterate(context.pTableNameHashObj, NULL);
     while (NULL != pTable) {
