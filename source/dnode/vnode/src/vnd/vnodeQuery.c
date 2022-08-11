@@ -265,6 +265,7 @@ int32_t vnodeGetBatchMeta(SVnode *pVnode, SRpcMsg *pMsg) {
   SRpcMsg   reqMsg = *pMsg;
   SRpcMsg   rspMsg = {0};
   void     *pRsp = NULL;
+  int64_t   startMs = taosGetTimestampMs();
 
   SArray *batchRsp = taosArrayInit(msgNum, sizeof(SBatchRsp));
   if (NULL == batchRsp) {
@@ -361,6 +362,8 @@ _exit:
   taosArrayDestroyEx(batchRsp, tFreeSBatchRsp);
 
   tmsgSendRsp(&rspMsg);
+
+  qFatal("vnodeBatchMeta used %" PRId64 "ms", taosGetTimestampMs() - startMs);
 
   return code;
 }

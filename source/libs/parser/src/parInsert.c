@@ -235,15 +235,6 @@ static int32_t getTableVgroup(SInsertParseContext* pCxt, int32_t tbNo, SName* pT
   return catalogGetTableHashVgroup(pBasicCtx->pCatalog, &conn, pTbName, pVg);
 }
 
-<<<<<<< HEAD
-static int32_t getTableMetaImpl(SInsertParseContext* pCxt, SName* name, char* dbFname, bool isStb) {
-  bool pass = false;
-  CHECK_CODE(checkAuth(pCxt, dbFname, &pass));
-  if (!pass) {
-    return TSDB_CODE_PAR_PERMISSION_DENIED;
-  }
-  CHECK_CODE(getTableSchema(pCxt, name, isStb, &pCxt->pTableMeta));
-=======
 static int32_t getTableMetaImpl(SInsertParseContext* pCxt, int32_t tbNo, SName* name, char* dbFname, bool isStb) {
   // bool pass = false;
   // CHECK_CODE(checkAuth(pCxt, dbFname, &pass));
@@ -252,7 +243,6 @@ static int32_t getTableMetaImpl(SInsertParseContext* pCxt, int32_t tbNo, SName* 
   // }
 
   CHECK_CODE(getTableSchema(pCxt, tbNo, name, isStb, &pCxt->pTableMeta));
->>>>>>> origin/feature/3.0_insert_perf_wxy
   if (!isStb) {
     SVgroupInfo vg;
     CHECK_CODE(getTableVgroup(pCxt, tbNo, name, &vg));
@@ -1493,13 +1483,9 @@ static int32_t parseInsertBody(SInsertParseContext* pCxt) {
       CHECK_CODE(getTableMeta(pCxt, tbNum, &name, dbFName));
     }
 
-<<<<<<< HEAD
-    //printf("%" PRId64 " 3\n", taosGetTimestampMs());
-=======
     // getTableElapsed += taosGetTimestampMs() - getTableStart;
     // int64_t getDataBufStart = taosGetTimestampMs();
 
->>>>>>> origin/feature/3.0_insert_perf_wxy
     STableDataBlocks* dataBuf = NULL;
     CHECK_CODE(getDataBlockFromList(pCxt->pTableBlockHashObj, &pCxt->pTableMeta->uid, sizeof(pCxt->pTableMeta->uid),
                                     TSDB_DEFAULT_PAYLOAD_SIZE, sizeof(SSubmitBlk),
@@ -1545,16 +1531,12 @@ static int32_t parseInsertBody(SInsertParseContext* pCxt) {
     return buildSyntaxErrMsg(&pCxt->msg, "keyword VALUES or FILE is expected", sToken.z);
   }
 
-<<<<<<< HEAD
-  //printf("%" PRId64 " before merge blocks\n", taosGetTimestampMs());
-=======
   // printf(
   //     "parse %d sql %d tables %d rows elapsed parBodyElapsed=%ldms parTableElapsed=%ldms getTableElapsed=%ldms "
   //     "getDataBufElapsed=%ldms parValueElapsed=%ldms(memElapsed=%ldms parRowElapsed=%ldms)\n",
   //     pCxt->pComCxt->sqlLen, tbNum, pCxt->totalNum, taosGetTimestampMs() - parBodyStart, parTableElapsed,
   //     getTableElapsed, getDataBufElapsed, parValueElapsed, pCxt->memElapsed, pCxt->parRowElapsed);
 
->>>>>>> origin/feature/3.0_insert_perf_wxy
   qDebug("0x%" PRIx64 " insert input rows: %d", pCxt->pComCxt->requestId, pCxt->totalNum);
 
   if (TSDB_QUERY_HAS_TYPE(pCxt->pOutput->insertType, TSDB_QUERY_TYPE_STMT_INSERT)) {
@@ -1593,8 +1575,8 @@ int32_t parseInsertSql(SParseContext* pContext, SQuery** pQuery, SParseMetaCache
       .msg = {.buf = pContext->pMsg, .len = pContext->msgLen},
       .pTableMeta = NULL,
       .createTblReq = {0},
-      .pSubTableHashObj = taosHashInit(5000, taosGetDefaultHashFunction(TSDB_DATA_TYPE_VARCHAR), true, HASH_NO_LOCK),
-      .pTableNameHashObj = taosHashInit(5000, taosGetDefaultHashFunction(TSDB_DATA_TYPE_VARCHAR), true, HASH_NO_LOCK),
+      .pSubTableHashObj = taosHashInit(128, taosGetDefaultHashFunction(TSDB_DATA_TYPE_VARCHAR), true, HASH_NO_LOCK),
+      .pTableNameHashObj = taosHashInit(128, taosGetDefaultHashFunction(TSDB_DATA_TYPE_VARCHAR), true, HASH_NO_LOCK),
       .pDbFNameHashObj = taosHashInit(64, taosGetDefaultHashFunction(TSDB_DATA_TYPE_VARCHAR), true, HASH_NO_LOCK),
       .totalNum = 0,
       .pOutput = (SVnodeModifOpStmt*)nodesMakeNode(QUERY_NODE_VNODE_MODIF_STMT),
@@ -1616,11 +1598,7 @@ int32_t parseInsertSql(SParseContext* pContext, SQuery** pQuery, SParseMetaCache
   } else {
     context.pVgroupsHashObj = taosHashInit(128, taosGetDefaultHashFunction(TSDB_DATA_TYPE_INT), true, HASH_NO_LOCK);
     context.pTableBlockHashObj =
-<<<<<<< HEAD
-        taosHashInit(5000, taosGetDefaultHashFunction(TSDB_DATA_TYPE_BINARY), true, HASH_NO_LOCK);
-=======
         taosHashInit(128, taosGetDefaultHashFunction(TSDB_DATA_TYPE_BIGINT), true, HASH_NO_LOCK);
->>>>>>> origin/feature/3.0_insert_perf_wxy
   }
 
   if (NULL == context.pVgroupsHashObj || NULL == context.pTableBlockHashObj || NULL == context.pSubTableHashObj ||

@@ -397,7 +397,8 @@ void cliHandleResp(SCliConn* conn) {
   STraceId* trace = &transMsg.info.traceId;
 
   if (pHead->msgType == TDMT_VND_SUBMIT_RSP) {
-  tGFatal("%" PRId64 " %s conn %p %s received from %s, local info:%s, len:%d, code str:%s\n", taosGetTimestampMs(),CONN_GET_INST_LABEL(conn), conn,
+  //tGFatal("%" PRId64 " %s conn %p %s received from %s, local info:%s, len:%d, code str:%s", taosGetTimestampMs(),CONN_GET_INST_LABEL(conn), conn,
+  tGTrace("%" PRId64 " %s conn %p %s received from %s, local info:%s, len:%d, code str:%s", taosGetTimestampMs(),CONN_GET_INST_LABEL(conn), conn,
           TMSG_INFO(pHead->msgType), conn->dst, conn->src, transMsg.contLen, tstrerror(transMsg.code));
   }
 
@@ -793,7 +794,7 @@ void cliSend(SCliConn* pConn) {
 
   STraceId* trace = &pMsg->info.traceId;
   if (pHead->msgType == TDMT_VND_SUBMIT) {
-  tGFatal("%" PRId64 " %s conn %p %s is sent to %s, local info %s, len:%d\n", taosGetTimestampMs(), CONN_GET_INST_LABEL(pConn), pConn,
+  tGTrace("%" PRId64 " %s conn %p %s is sent to %s, local info %s, len:%d", taosGetTimestampMs(), CONN_GET_INST_LABEL(pConn), pConn,
           TMSG_INFO(pHead->msgType), pConn->dst, pConn->src, pMsg->contLen);
   }
 

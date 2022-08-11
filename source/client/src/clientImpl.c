@@ -843,7 +843,7 @@ void schedulerExecCb(SExecResult* pResult, void* param, int32_t code) {
 
   taosMemoryFree(pResult);
 
-  tscFatal("%" PRId64 " 0x%" PRIx64 " enter scheduler exec cb, code:%d - %s, reqId:0x%" PRIx64 "\n", taosGetTimestampMs(), pRequest->self, code,
+  tscFatal("%" PRId64 " 0x%" PRIx64 " enter scheduler exec cb, code:%d - %s, reqId:0x%" PRIx64, taosGetTimestampMs(), pRequest->self, code,
            tstrerror(code), pRequest->requestId);
 
   STscObj* pTscObj = pRequest->pTscObj;
