@@ -264,6 +264,8 @@ static void tdDestroyRSmaStat(void *pRSmaStat) {
     atomic_store_8(RSMA_TRIGGER_STAT(pStat), TASK_TRIGGER_STAT_CANCELLED);
 
     // step 2: destroy the rsma info and associated fetch tasks
+    // TODO: use taosHashSetFreeFp when taosHashSetFreeFp is ready.
+#if 1
     if (taosHashGetSize(RSMA_INFO_HASH(pStat)) > 0) {
       void *infoHash = taosHashIterate(RSMA_INFO_HASH(pStat), NULL);
       while (infoHash) {
@@ -272,6 +274,7 @@ static void tdDestroyRSmaStat(void *pRSmaStat) {
         infoHash = taosHashIterate(RSMA_INFO_HASH(pStat), infoHash);
       }
     }
+#endif
     taosHashCleanup(RSMA_INFO_HASH(pStat));
 
     // step 3: wait all triggered fetch tasks finished
@@ -289,7 +292,7 @@ static void tdDestroyRSmaStat(void *pRSmaStat) {
         nLoops = 0;
       }
     }
-    
+
     // step 4: free pStat
     taosMemoryFreeClear(pStat);
   }

@@ -2660,10 +2660,6 @@ typedef struct {
 } SVgEpSet;
 
 typedef struct {
-  int32_t padding;
-} SRSmaExecMsg;
-
-typedef struct {
   int64_t suid;
   int8_t  level;
 } SRSmaFetchMsg;
