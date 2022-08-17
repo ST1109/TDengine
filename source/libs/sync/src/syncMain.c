@@ -1159,6 +1159,9 @@ SSyncNode* syncNodeOpen(const SSyncInfo* pOldSyncInfo) {
   pSyncNode->leaderTime = timeNow;
   pSyncNode->lastReplicateTime = timeNow;
 
+  pSyncNode->enableWaitProgress = false;
+  pSyncNode->waitProgressStartTime = 0;
+
   syncNodeEventLog(pSyncNode, "sync open");
 
   return pSyncNode;

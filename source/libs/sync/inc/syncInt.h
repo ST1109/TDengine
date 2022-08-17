@@ -166,6 +166,10 @@ typedef struct SSyncNode {
   int64_t leaderTime;
   int64_t lastReplicateTime;
 
+  // wait progress
+  bool    enableWaitProgress;
+  int64_t waitProgressStartTime;
+
 } SSyncNode;
 
 // open/close --------------

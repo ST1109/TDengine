@@ -212,11 +212,75 @@ int32_t syncNodeAppendEntriesOnePeer(SSyncNode* pSyncNode, SRaftId* pDestId, Syn
   return ret;
 }
 
-int32_t syncNodeAppendEntriesPeersSnapshot2(SSyncNode* pSyncNode) {
-  if (pSyncNode->state != TAOS_SYNC_STATE_LEADER) {
-    return -1;
+bool syncNodeWaitProgress(SSyncNode* pSyncNode) { return pSyncNode->enableWaitProgress; }
+
+void syncNodeEnableWaitProgress(SSyncNode* pSyncNode) {
+  pSyncNode->enableWaitProgress = true;
+  pSyncNode->waitProgressStartTime = taosGetTimestampMs();
+}
+
+void syncNodeDisableWaitProgress(SSyncNode* pSyncNode) { pSyncNode->enableWaitProgress = false; }
+
+bool syncNodeWaitProgressTimeout(SSyncNode* pSyncNode) {
+  return (pSyncNode->enableWaitProgress &&
+          taosGetTimestampMs() - pSyncNode->waitProgressStartTime > SYNC_MAX_PROGRESS_WAIT_MS);
+}
+
+bool syncNodeNeedWaitProgress(SSyncNode* pSyncNode, SRaftId* pDestId1Ret, SyncIndex* pNextIndex1Ret,
+                              SRaftId* pDestId2Ret, SyncIndex* pNextIndex2Ret) {
+  SyncIndex diff;
+  if (pSyncNode->peersNum > 0) {
+    ASSERT(pSyncNode->peersNum == 2);
+
+    SRaftId*  pDestId1 = &(pSyncNode->peersId[0]);
+    SyncIndex nextIndex1 = syncIndexMgrGetIndex(pSyncNode->pNextIndex, pDestId1);
+
+    SRaftId*  pDestId2 = &(pSyncNode->peersId[1]);
+    SyncIndex nextIndex2 = syncIndexMgrGetIndex(pSyncNode->pNextIndex, pDestId2);
+
+    diff = nextIndex2 - nextIndex1;
+    if (diff < 0) {
+      diff *= -1;
+    }
+
+    if (diff > SYNC_MAX_PROGRESS_OVER_RANGE) {
+      do {
+        char logBuf[128];
+        snprintf(logBuf, sizeof(logBuf), "wait progress over range, next1:%ld, next2:%ld, diff:%ld", nextIndex1,
+                 nextIndex2, diff);
+        syncNodeEventLog(pSyncNode, logBuf);
+      } while (0);
+
+      return false;
+    }
+
+    if (diff > SYNC_MAX_PROGRESS_RANGE) {
+      *pDestId1Ret = *pDestId1;
+      *pDestId2Ret = *pDestId2;
+
+      if (nextIndex1 < nextIndex2) {
+        *pNextIndex1Ret = nextIndex1;
+        *pNextIndex2Ret = nextIndex1 + SYNC_MAX_PROGRESS_RANGE - 1;
+      } else {
+        *pNextIndex2Ret = nextIndex2;
+        *pNextIndex1Ret = nextIndex2 + SYNC_MAX_PROGRESS_RANGE - 1;
+      }
+
+      do {
+        char logBuf[128];
+        snprintf(logBuf, sizeof(logBuf), "wait progress, next1:%ld, next2:%ld, diff:%ld, update-n1:%ld, update-n2:%ld",
+                 nextIndex1, nextIndex2, diff, *pNextIndex1Ret, *pNextIndex2Ret);
+        syncNodeEventLog(pSyncNode, logBuf);
+      } while (0);
+
+      return true;
+    }
   }
 
+  return false;
+}
+
+static int32_t syncNodeDoAppendEntriesPeers(SSyncNode* pSyncNode) {
   int32_t ret = 0;
   for (int i = 0; i < pSyncNode->peersNum; ++i) {
     SRaftId* pDestId = &(pSyncNode->peersId[i]);
@@ -224,6 +288,46 @@ int32_t syncNodeAppendEntriesPeersSnapshot2(SSyncNode* pSyncNode) {
     // next index
     SyncIndex nextIndex = syncIndexMgrGetIndex(pSyncNode->pNextIndex, pDestId);
     ret = syncNodeAppendEntriesOnePeer(pSyncNode, pDestId, nextIndex);
+  }
+  return ret;
+}
+
+int32_t syncNodeAppendEntriesPeersSnapshot2(SSyncNode* pSyncNode) {
+  if (pSyncNode->state != TAOS_SYNC_STATE_LEADER) {
+    return -1;
+  }
+
+  int32_t ret = 0;
+
+  SRaftId   destId1 = {0};
+  SyncIndex nextIndex1 = SYNC_INDEX_INVALID;
+  SRaftId   destId2 = {0};
+  SyncIndex nextIndex2 = SYNC_INDEX_INVALID;
+
+  bool needWaitProgress = syncNodeNeedWaitProgress(pSyncNode, &destId1, &nextIndex1, &destId2, &nextIndex2);
+  if (needWaitProgress) {
+    if (syncNodeWaitProgress(pSyncNode)) {
+      // already wait progress
+      if (syncNodeWaitProgressTimeout(pSyncNode)) {
+        // timeout, replicate normally
+        syncNodeDisableWaitProgress(pSyncNode);
+        ret = syncNodeDoAppendEntriesPeers(pSyncNode);
+
+      } else {
+        // replicate wait progress
+        ret = syncNodeAppendEntriesOnePeer(pSyncNode, &destId1, nextIndex1);
+        ret = syncNodeAppendEntriesOnePeer(pSyncNode, &destId2, nextIndex2);
+      }
+
+    } else {
+      // replicate wait progress
+      syncNodeEnableWaitProgress(pSyncNode);
+      ret = syncNodeAppendEntriesOnePeer(pSyncNode, &destId1, nextIndex1);
+      ret = syncNodeAppendEntriesOnePeer(pSyncNode, &destId2, nextIndex2);
+    }
+
+  } else {
+    ret = syncNodeDoAppendEntriesPeers(pSyncNode);
   }
 
   return ret;
